@@ -1,0 +1,26 @@
+[
+  {
+    "timestamp": "2026-09-22T10:00:00",
+    "tool_name": "archify",
+    "decision": "FORCE_INSTALL",
+    "content": "archify 是 P0 级工具，在当前环境中强制执行。"
+  },
+  {
+    "timestamp": "2026-09-22T10:05:00",
+    "tool_name": "watermarks-remover",
+    "decision": "FORCE_INSTALL",
+    "content": "watermarks-remover 是 P0 级工具，在当前环境中强制执行。"
+  },
+  {
+    "timestamp": "2026-09-22T10:10:00",
+    "tool_name": "avoid-ai-writing",
+    "decision": "PARTIAL_INSTALL",
+    "content": "avoid-ai-writing 是 P1 级工具，在特定领域有限执行。"
+  },
+  {
+    "timestamp": "2026-09-22T10:15:00",
+    "tool_name": "writing-dna-skill",
+    "decision": "PARTIAL_INSTALL",
+    "content": "writing-dna-skill 是 P1 级工具，在特定领域有限执行。"
+  }
+]
