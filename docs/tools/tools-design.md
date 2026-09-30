@@ -10,17 +10,8 @@ source_lines: "779-794,876-893"
 
 | 工具 | 类型 | 状态 | 路径/入口 | 用法 |
 |------|------|------|-----------|------|
-| `wx-toolkit` | HTML | ✅ | [minis://shared/wx-toolkit/index.html](minis://shared/wx-toolkit/index.html) | 本地化一键排版。默认参数：15px/1.75em/字距1px/段距5px/图片阴影3.5/3.5/8px |
-| `minis-browser-use` | CLI | ✅ | `minis-browser-use` | 排版自动化：navigate → inject HTML → formatContent() → applyImageShadow() → screenshot 验证 |
-
-**自动化流水线**（用 minis-browser-use 操控 wx-toolkit）：
-```
-1. navigate → minis://shared/wx-toolkit/index.html
-2. execute_js → 注入 Markdown 转 HTML 的 innerHTML
-3. execute_js formatContent() — 一键排版（清脏样式+统一样式）
-4. execute_js applyImageShadow() — 图片加阴影
-5. screenshot — 验证效果
-```
+| `gzh-typeset.py` | Python | ✅ | `/var/minis/shared/gzh-team/gzh-typeset.py` | Markdown → HTML 排版。5 主题预设 + 荧光笔 + 首尾模板 + 表格转义 |
+| `minis-browser-use` | CLI | ✅ | `minis-browser-use` | 可选：navigate → inject HTML → formatContent() → screenshot 验证（原 gzh-typeset.py 流程） |
 
 
 ### 12.9 角色→工具速查
@@ -32,11 +23,11 @@ source_lines: "779-794,876-893"
 | **结构梳理** | 无工具（靠 §3.3 结构模板库） | 5 种模板：教程拆解/观点文/对比测评/复盘/盘点 |
 | **主笔** | `bao-kuai-xie-zuo` → `humanizer-check.py` | 写完跑去味检测，≤5 分进审核 |
 | **审核** | `yuwen-publish-precheck` + `gate-check.py` + `apple-vision` + `REVIEW.md` | 词面预检 → 结构门禁 → OCR 抽检 → 规范对照 |
-| **排版** | `hai-bao-she-ji`(即梦) / `minis-model-use`(sensenova) + `wx-toolkit` + `minis-browser-use` | 生图 → 排版 → 截图验证 |
+| **排版** | `hai-bao-she-ji`(即梦) / `minis-model-use`(sensenova) + `gzh-typeset.py` | 生图 → 排版 → 截图验证 |
 | **发布** | `gongzhonghao-publish` + `gzh-api-push.py` | 检查清单 → API 推草稿箱 → 后台确认 |
 | **读者互动官** | `nei-rong-zhuan-hua` | 一鱼多吃 6 平台拆分 |
 
-> ✅ 15 个工具 + 7 个文档/配置（§12.1-12.8 共 22 行，逐行验证存在）（09-17）。5 个已实测执行（wx-toolkit / gate-check.py / yuwen-publish-precheck / hai-bao-she-ji / minis-model-use），8 个已读文档未执行。
+> ✅ 15 个工具 + 7 个文档/配置（§12.1-12.8 共 22 行，逐行验证存在）（09-17）。4 个已实测执行（gate-check.py / yuwen-publish-precheck / hai-bao-she-ji / minis-model-use），9 个已读文档未执行。
 > ⚠️ 结构梳理无对应工具——靠模板库是现状，不是遗漏。模板库的 5 种结构覆盖 AI 自媒体 90% 的选题类型。
 
 ---

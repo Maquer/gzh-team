@@ -6,9 +6,6 @@
 
 | ID | 模板名 | 适用类型 | 文件路径 |
 |----|--------|---------|---------|
-| T01 | 标准观点 | 观点/资讯 | templates/standard-opinion.md |
-| T02 | 评测横比 | 评测/对比 | templates/review-compare.md |
-| T03 | 教程方法 | 教程/方法 | templates/tutorial-method.md |
 
 ## 模板结构规范
 
