@@ -1,0 +1,30 @@
+[
+  {
+    "name": "archify",
+    "priority": "P0",
+    "domain": "tool-development",
+    "status": "ACTIVE",
+    "reason": "环境可行性高，执行能力强"
+  },
+  {
+    "name": "watermarks-remover",
+    "priority": "P0",
+    "domain": "tool-development",
+    "status": "ACTIVE",
+    "reason": "环境可行性高，执行能力强"
+  },
+  {
+    "name": "avoid-ai-writing",
+    "priority": "P1",
+    "domain": "content-creation",
+    "status": "PARTIAL",
+    "reason": "特定领域有限执行，存在重合工具"
+  },
+  {
+    "name": "writing-dna-skill",
+    "priority": "P1",
+    "domain": "content-creation",
+    "status": "PARTIAL",
+    "reason": "特定领域有限执行，存在重合工具"
+  }
+]

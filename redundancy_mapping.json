@@ -1,0 +1,14 @@
+{
+  "content-creation": {
+    "avoid-ai-writing": "keep humanizer-check",
+    "writing-dna-skill": "keep"
+  },
+  "tool-development": {
+    "archify": "keep",
+    "watermarks-remover": "keep"
+  },
+  "data-analysis": {
+    "higgsfield": "archive",
+    "srt-whiteboard-animation": "archive"
+  }
+}

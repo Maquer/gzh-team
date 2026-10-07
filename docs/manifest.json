@@ -1,0 +1,123 @@
+{
+ "wall": 2048,
+ "source_lines": 1020,
+ "files": [
+  {
+   "id": "overview",
+   "path": "docs/00-architecture/overview.md",
+   "tokens": 2145,
+   "over": true,
+   "source_lines": [
+    65
+   ]
+  },
+  {
+   "id": "contracts",
+   "path": "docs/00-architecture/contracts.md",
+   "tokens": 2175,
+   "over": true,
+   "source_lines": [
+    482,
+    533,
+    875
+   ]
+  },
+  {
+   "id": "org",
+   "path": "docs/00-architecture/org.md",
+   "tokens": 1679,
+   "over": false,
+   "source_lines": [
+    511,
+    556
+   ]
+  },
+  {
+   "id": "quickstart",
+   "path": "docs/00-architecture/quickstart.md",
+   "tokens": 1192,
+   "over": false,
+   "source_lines": [
+    582,
+    590,
+    600
+   ]
+  },
+  {
+   "id": "CHANGELOG",
+   "path": "CHANGELOG.md",
+   "tokens": 8240,
+   "over": true,
+   "source_lines": [
+    737,
+    949,
+    997,
+    1020
+   ]
+  },
+  {
+   "id": "files",
+   "path": "docs/00-architecture/files.md",
+   "tokens": 1002,
+   "over": false,
+   "source_lines": [
+    752
+   ]
+  },
+  {
+   "id": "tools-writing",
+   "path": "docs/tools/tools-writing.md",
+   "tokens": 1281,
+   "over": false,
+   "source_lines": [
+    778
+   ]
+  },
+  {
+   "id": "tools-design",
+   "path": "docs/tools/tools-design.md",
+   "tokens": 1654,
+   "over": false,
+   "source_lines": [
+    794,
+    893
+   ]
+  },
+  {
+   "id": "tools-media",
+   "path": "docs/tools/tools-media.md",
+   "tokens": 1704,
+   "over": false,
+   "source_lines": [
+    826
+   ]
+  },
+  {
+   "id": "tools-release",
+   "path": "docs/tools/tools-release.md",
+   "tokens": 1946,
+   "over": false,
+   "source_lines": [
+    867
+   ]
+  },
+  {
+   "id": "training",
+   "path": "docs/00-architecture/training.md",
+   "tokens": 985,
+   "over": false,
+   "source_lines": [
+    974
+   ]
+  },
+  {
+   "id": "TEAM",
+   "path": "TEAM.md",
+   "tokens": 13970,
+   "over": true,
+   "source_lines": [
+    1
+   ]
+  }
+ ]
+}

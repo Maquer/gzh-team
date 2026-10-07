@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+*.so
+.env
+*.key
+*.pem
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+
+# 脱敏版说明
+# 上传 GitHub 前请确认所有占位符已改为你的账号信息
+# 品牌名占位符：<YOUR_BRAND> / <YOUR_BRAND_EN>

@@ -1,0 +1,18 @@
+{
+  "archify": {
+    "category": "tool-development",
+    "priority": "P0"
+  },
+  "watermarks-remover": {
+    "category": "tool-development",
+    "priority": "P0"
+  },
+  "avoid-ai-writing": {
+    "category": "content-creation",
+    "priority": "P1"
+  },
+  "writing-dna-skill": {
+    "category": "content-creation",
+    "priority": "P1"
+  }
+}
