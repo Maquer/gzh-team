@@ -4,20 +4,42 @@ archive_note_generator.py：生成归档笔记（Markdown 格式）
 用法：归档完成后调用 generate_all_notes() 自动生成
 关键约束：需指定 workspace_dir，输出到 archive_notes/ 目录
 """
-import os
 import json
 import argparse
 from pathlib import Path
 from datetime import datetime
 
 class ArchiveNoteGenerator:
-    def __init__(self, workspace_dir="/var/minis/shared/gzh-team"):
-        self.workspace_dir = Path(workspace_dir)
+    def __init__(self, workspace_dir=None, tools_file=None):
+        self.workspace_dir = Path(workspace_dir or Path(__file__).resolve().parent)
         self.decision_log_file = self.workspace_dir / "decision_log.json"
-        self.active_tools_file = self.workspace_dir / "active_tools.json"
+        self.active_tools_file = Path(tools_file) if tools_file else self.workspace_dir / "active_tools.json"
         
     def load_decisions(self):
-        content = f"""
+        """读取 decision_log.json；同一工具多条记录时保留最新一条。"""
+        if not self.decision_log_file.exists():
+            return []
+        with open(self.decision_log_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        latest = {}
+        for d in data:
+            if not isinstance(d, dict) or 'tool_name' not in d:
+                continue
+            prev = latest.get(d['tool_name'])
+            if prev is None or str(d.get('timestamp', '')) >= str(prev.get('timestamp', '')):
+                latest[d['tool_name']] = d
+        return list(latest.values())
+
+    def load_active_tools(self):
+        if not self.active_tools_file.exists():
+            return []
+        with open(self.active_tools_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+
+    def generate_note_content(self, tool_name, decision, timestamp):
+        """按决策类型生成归档笔记（与 archives_optimizer.py 的模板一致）。"""
+        if decision in ("FORCE_INSTALL", "FULL_INSTALL"):
+            content = f"""# {tool_name}
 > 核心价值：P0 强制执行工具
 > 决策边界：环境不可用则归档
 > P1 借鉴：架构设计与执行流程
@@ -27,23 +49,16 @@ class ArchiveNoteGenerator:
 {tool_name} 是 P0 级工具，在当前环境中强制执行。
 
 #  核心差异
-# 与同类工具不同之处在于自动化执行能力。
+与同类工具不同之处在于自动化执行能力。
 
 #  P1 借鉴
-# 从[工具名]中借鉴执行流程和架构设计。[借鉴细节]
+从其他工具中借鉴执行流程和架构设计。
 
 #  域内边界
-{tool_name} 的应用受限于[环境限制]。
+{tool_name} 的应用受限于 iSH 环境限制。
 
 生成时间：{timestamp}
 """
-        if decision == "FULL_INSTALL":
-            content = f"""# {tool_name}
-            > 核心价值：P0 强制执行工具
-            > 决策边界：环境不可用则归档
-            > P1 借鉴：架构设计与执行流程
-            > 域内边界：iSH 环境限制
-            """
         elif decision == "PARTIAL_INSTALL":
             content = f"""# {tool_name}
 > 核心价值：P1 部分执行工具
@@ -55,17 +70,17 @@ class ArchiveNoteGenerator:
 {tool_name} 是 P1 级工具，在特定领域有限执行。
 
 #  核心差异
-# 与同类工具不同之处在于边界管理和部分执行能力。[具体差异]
+与同类工具不同之处在于边界管理和部分执行能力。
 
 #  P1 借鉴
-# 从[工具名]中借鉴边界管理和工具池管理。[借鉴细节]
+从其他工具中借鉴边界管理和工具池管理。
 
 #  域内边界
-{tool_name} 的应用受限于[特定领域]。
+{tool_name} 的应用受限于特定领域。
 
 生成时间：{timestamp}
 """
-        else:  # ARCHIVE_ONLY
+        else:  # ARCHIVE_ONLY 及其它
             content = f"""# {tool_name}
 > 核心价值：P2/P3 仅归档工具
 > 决策边界：环境不可用 + 领域错位
@@ -76,7 +91,7 @@ class ArchiveNoteGenerator:
 {tool_name} 归档仅供参考，无实际执行能力。
 
 #  核心差异
-# 与同类工具不同之处在于完全归档且无实际应用。[具体差异]
+与同类工具不同之处在于完全归档且无实际应用。
 
 #  P1 借鉴
 无直接借鉴。
@@ -87,7 +102,7 @@ class ArchiveNoteGenerator:
 生成时间：{timestamp}
 """
         return content
-    
+
     def generate_all_notes(self):
         print("开始生成归档笔记...")
         
@@ -122,7 +137,7 @@ class ArchiveNoteGenerator:
             
             # 保存归档笔记
             note_file = notes_dir / f"archive_note_{tool_name}.md"
-            with open(note_file, 'w') as f:
+            with open(note_file, 'w', encoding='utf-8') as f:
                 f.write(note_content)
             
             generated_notes.append({
@@ -162,7 +177,7 @@ class ArchiveNoteGenerator:
             
             total = len(generated_notes)
             for decision, count in decision_counts.items():
-                ratio = (count / total) * 100
+                ratio = (count / total) * 100 if total else 0
                 f.write(f"| {decision} | {count} | {ratio:.1f}% |\n")
             
             f.write("\n")
@@ -185,7 +200,7 @@ def main():
     
     args = parser.parse_args()
     
-    generator = ArchiveNoteGenerator()
+    generator = ArchiveNoteGenerator(tools_file=args.tools)
     generator.run()
 
 if __name__ == "__main__":

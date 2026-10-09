@@ -21,11 +21,11 @@ pattern 条目格式: - [YYYY-MM-DD] 内容
 上限: 每角色每类 12 条，超了 FIFO 淘汰最旧
 去重: 归一化（strip+去标点空白）后完全相同则跳过
 """
-import sys, re, argparse, json
+import sys, re, argparse
 from pathlib import Path
 from datetime import datetime, timedelta
 
-CARD_DIR = Path("/var/minis/shared/gzh-team/training/skills")
+CARD_DIR = Path(__file__).resolve().parent / "skills"
 ROLES = ["01-选题规划师", "02-主笔", "03-审核", "04-排版",
          "05-发布", "06-负责人", "07-读者互动官", "08-数据分析师"]
 ROLE_FILES = {r: CARD_DIR / (r + ".md") for r in ROLES}

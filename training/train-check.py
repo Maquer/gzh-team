@@ -24,7 +24,11 @@ G5 岗位能力考核脚本 —— 公众号团队培训体系度量层
 """
 import sys, re, json, subprocess, os
 
-HUMANIZER = "/var/minis/shared/humanizer-check/humanizer-check.py"
+# 仓库根目录（原为 /var/minis/shared/gzh-team）与共享工具目录（仓库的上一级）
+GZH_TEAM = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SHARED_DIR = os.environ.get('GZH_SHARED_DIR', os.path.dirname(GZH_TEAM))
+
+HUMANIZER = os.path.join(SHARED_DIR, "humanizer-check", "humanizer-check.py")
 
 # ---- 口径与 gate-check.py 完全一致（黄金测试校验）----
 # 终止节必须含「结尾」：TEAM.md §3.4 要求文章有 ## 结尾 节，
@@ -152,6 +156,7 @@ def assess_lead(text):
                     "达标": has_basis, "判定方式": "布尔"},
         "禁用词": {"实测": hits or "无", "标准": "0 命中", "达标": not hits, "判定方式": "脚本"},
         "元话语污染": {"实测": meta or "无", "标准": "0 命中", "达标": not meta, "判定方式": "布尔"},
+        "紧迫诱导词": {"实测": urg_hits or "无", "标准": "0 命中", "达标": not urg_hits, "判定方式": "脚本"},
     }
 
 

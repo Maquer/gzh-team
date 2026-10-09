@@ -1,8 +1,36 @@
 """
-verify-all.py：全量验证工具（H11/H12/H13/H14/H15）
-用法：python3 verify-all.py <article.md>
-关键约束：exit 0=PASS, 1=FAIL, 需指定文章路径
+verify-all.py：拆分一致性全量验证（V1-V6）
+校验冻结源未被改动、split.py 幂等、docs/ 与冻结源无漂移、索引完整、frontmatter 正确。
+用法：python3 verify-all.py
+关键约束：依赖冻结源 TEAM.md.bak-pre-split；exit 0=PASS, 1=FAIL, 2=缺少冻结源
 """
+import glob
+import hashlib
+import io
+import os
+import re
+import subprocess
+import sys
+
+# 冻结源（与 split.py 的 SRC 一致）。开源脱敏版不附带，缺失时直接提示退出。
+SRC = 'TEAM.md.bak-pre-split'
+if not os.path.exists(SRC):
+    print('verify-all.py: 未找到冻结源 %s（开源版不附带），无法做拆分一致性验证。' % SRC, file=sys.stderr)
+    sys.exit(2)
+
+
+def md5(p):
+    return hashlib.md5(io.open(p, 'rb').read()).hexdigest() if os.path.exists(p) else 'MISSING'
+
+
+def md5_all(ps):
+    return {p: md5(p) for p in ps}
+
+
+# 拆分产物：docs/ 下全部 md + CHANGELOG.md + TEAM.md 索引
+prods = sorted(glob.glob('docs/**/*.md', recursive=True)) + ['CHANGELOG.md', 'TEAM.md']
+fails = []
+
 # 跳过 V3/V6 drift 检查（它们与 frozen 源无对应关系）
 MANUAL_PREFIX=('docs/roles/','docs/rules/')
 def is_manual(p): return any(p.startswith(pfx) for pfx in MANUAL_PREFIX)
@@ -55,7 +83,10 @@ bad=[];tokdrift=[]
 for p in prods:
     if p=='TEAM.md': continue
     L=io.open(p,encoding='utf-8').read().split('\n')
-    k=[n for n in range(min(10,len(L))) if L[n]=='---'][1]
+    seps=[n for n in range(min(10,len(L))) if L[n]=='---']
+    if len(seps)<2 or seps[0]!=0:
+        bad.append((p,'frontmatter')); continue
+    k=seps[1]
     fm=dict(x.split(':',1) for x in L[1:k] if ':' in x)
     for f in need:
         if f not in fm: bad.append((p,f))

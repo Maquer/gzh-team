@@ -13,10 +13,18 @@ gate-G8-check.py：发布前检查判据脚本化
 #   5) 09-21 Skill 生态 v2 经验（v1→v2 撞车判定）
 # 用法：python3 gate-G8-check.py <发布前检查.md> [--html 排版稿.html]
 # 定位：G8 未过不予发布，必须补齐 FAIL 项
-import sys, re
+import os
+import re
+import sys
 
+if len(sys.argv) >= 2 and sys.argv[1] in ('-h', '--help'):
+    print('用法：python3 gate-G8-check.py <发布前检查.md> [--html 排版稿.html]')
+    sys.exit(0)
 if len(sys.argv) < 2:
     print('用法：python3 gate-G8-check.py <发布前检查.md> [--html 排版稿.html]')
+    sys.exit(2)
+if not os.path.isfile(sys.argv[1]):
+    print(f'ERROR: 文件不存在 {sys.argv[1]}', file=sys.stderr)
     sys.exit(2)
 
 check_file = sys.argv[1]

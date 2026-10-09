@@ -6,8 +6,12 @@ cover-recommend.py：文章→调性打分→风格→可执行命令
 """
 import argparse, datetime, importlib.util, os, re, subprocess, sys
 
+# 仓库根目录（原为 /var/minis/shared/gzh-team）与共享工具目录（仓库的上一级）
+GZH_TEAM = os.path.dirname(os.path.abspath(__file__))
+SHARED_DIR = os.environ.get('GZH_SHARED_DIR', os.path.dirname(GZH_TEAM))
+
 HERE = os.path.dirname(os.path.abspath(__file__))
-TYPESET = '/var/minis/shared/gzh-typeset/gzh-typeset.py'
+TYPESET = os.path.join(SHARED_DIR, 'gzh-typeset', 'gzh-typeset.py')
 
 sys.path.insert(0, HERE)
 from cover_styles import DESIGNER_STYLES, TONE_TO_STYLE

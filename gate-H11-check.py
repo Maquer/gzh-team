@@ -24,21 +24,49 @@ FLAT_MAX_COLORS = 2
 
 
 def check_ocr(path, level='fast'):
+    """调用 apple-vision OCR，返回 blocks 列表；调用失败返回 None。"""
+    try:
+        r = subprocess.run(
+            ['apple-vision', 'ocr', path, '--lang', 'zh-Hans,en', '--level', level, '-q'],
+            capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if r.returncode != 0:
+        return None
+    try:
+        return json.loads(r.stdout).get('blocks', []) if r.stdout.strip() else []
+    except ValueError:
+        return None
+
+
+def check_ocr_dual(path):
+    """fast 为主；accurate 只做兜底补充（accurate 在纯色区会造字，不能直接全收）。"""
     fast = check_ocr(path, 'fast')
     accurate = check_ocr(path, 'accurate')
     if fast is None and accurate is None:
         return None
     blocks = list(fast or [])
     accurate_wm = []
+    seen = {b.get('text', '').strip() for b in blocks}
     for b in (accurate or []):
         t = b.get('text', '').strip()
-        if t and any(kw.lower() in t.lower() for kw in WATERMARK_KEYWORDS):
+        if t and t not in seen and any(kw.lower() in t.lower() for kw in WATERMARK_KEYWORDS):
             accurate_wm.append(b)
     blocks.extend(accurate_wm)
     return blocks
 
 
 def is_flat(path, box, max_colors=FLAT_MAX_COLORS):
+    """区域颜色数 ≤ max_colors 视为纯色区（OCR 在纯色区的检出多为幻觉）。"""
+    try:
+        px = list(Image.open(path).convert('RGB').crop(box).getdata())
+        return len(set(px)) <= max_colors, len(set(px)), len(px)
+    except Exception:
+        return False, 0, 0
+
+
+def check_image(path, titles=frozenset(), subs=frozenset()):
+    """返回 (fail, warn, details)。"""
     if not os.path.isfile(path):
         return True, False, [f'文件不存在: {path}']
 
@@ -73,12 +101,12 @@ def is_flat(path, box, max_colors=FLAT_MAX_COLORS):
         # 置信度判断（对齐 REVIEW.md H11 硬约束）
         conf = b.get('confidence', 1.0)
         if conf < CONF_THRESHOLD:
-            # conf < 0.5 → WARN（可能是幻觉，人工确认；水印关键词已前置拦截）
+            # conf < CONF_THRESHOLD → WARN（可能是幻觉，人工确认；水印关键词已前置拦截）
             warn = True
-            details.append(f'⚠ [{t}] conf={conf:.2f} <0.5 → 疑似 OCR 幻觉，人工确认')
+            details.append(f'⚠ [{t}] conf={conf:.2f} <{CONF_THRESHOLD} → 疑似 OCR 幻觉，人工确认')
         else:
             fail = True
-            details.append(f'✗ [{t}] conf={conf:.2f} ≥0.5 → 真实中文残留，H11 未过')
+            details.append(f'✗ [{t}] conf={conf:.2f} ≥{CONF_THRESHOLD} → 真实中文残留，H11 未过')
 
     return fail, warn, details
 
@@ -113,7 +141,7 @@ def main():
             if not r['details']:
                 print('  （空）')
             print(f'  → {"FAIL" if r["fail"] else "PASS"}')
-        print(f'\n=== 门禁判定 ===')
+        print('\n=== 门禁判定 ===')
         print('FAIL: 至少一张图片未通过 H11 门禁（中文残留或水印关键词残留）' if any_fail
               else 'PASS: 全部图片通过 H11 门禁')
 

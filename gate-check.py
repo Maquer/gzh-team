@@ -176,7 +176,7 @@ if VERBOSE:
     verdict = 'PASS' if not block_fails and not warn_fails else ('BLOCK' if block_fails else 'WARN')
     npass = 10 - len(block_fails) - len(warn_fails)
     if not block_fails and not warn_fails:
-        print(f'**审核建议**：✅ BLOCK 0 / WARN 0，全项通过，可进 05 审核岗人工通读')
+        print('**审核建议**：✅ BLOCK 0 / WARN 0，全项通过，可进 05 审核岗人工通读')
     elif block_fails:
         print(f'**审核建议**：❌ {len(block_fails)} 项 BLOCK 硬拦，必须修复后复检')
     else:

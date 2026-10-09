@@ -12,7 +12,11 @@ gate-H14-check.py：H14合规检查门禁（广告法/敏感词）
 #   strict 模式：0=PASS / 1=FAIL / 2=输入错误
 import argparse, json, subprocess, sys, re, os
 
-HUMANIZER = '/var/minis/shared/humanizer-check/humanizer-check.py'
+# 仓库根目录（原为 /var/minis/shared/gzh-team）与共享工具目录（仓库的上一级）
+GZH_TEAM = os.path.dirname(os.path.abspath(__file__))
+SHARED_DIR = os.environ.get('GZH_SHARED_DIR', os.path.dirname(GZH_TEAM))
+
+HUMANIZER = os.path.join(SHARED_DIR, 'humanizer-check', 'humanizer-check.py')
 
 # H14 判定阈值
 THRESHOLD_PASS = 5
@@ -101,7 +105,7 @@ def main():
             print(f'\n[{r["path"]}]')
             print(f'  AI 味评分: {score_str}')
             print(f'  判定: {r["level"]} → {r["action"]}')
-        print(f'\n=== 门禁判定 ===')
+        print('\n=== 门禁判定 ===')
         if any_fail:
             print('FAIL: 至少一篇正文未通过 H14 门禁（AI 味 >25 分，需推倒重写）')
         else:

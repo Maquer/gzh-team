@@ -5,10 +5,17 @@ persona-layers.py：画像分层读取工具（层间不跨读）
 用法：python3 persona-layers.py <参数>
 关键约束：需指定层名，不跨层读取
 """
-import sys, re
+import importlib.util
+import re
+import sys
 from pathlib import Path
 
-ROLES_DIR = Path("/var/minis/shared/gzh-team/docs/roles")
+ROLES_DIR = Path(__file__).resolve().parent / "docs" / "roles"
+
+# 复用 persona.py 的角色卡头部解析
+_spec = importlib.util.spec_from_file_location("persona", Path(__file__).resolve().parent / "persona.py")
+_persona = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_persona)
 
 # 层→角色映射（角色文件名）
 LAYER_MAP = {
@@ -34,6 +41,11 @@ LAYER_NAMES = {
 
 
 def parse_frontmatter(text):
+    """返回角色卡头部的 (名字, 灵魂, 口头禅)。"""
+    return _persona.extract_persona(text)
+
+
+def load_role(fname):
     fpath = ROLES_DIR / fname
     if not fpath.exists():
         return None
@@ -53,6 +65,16 @@ def parse_frontmatter(text):
 
 
 def get_layer_roles(layer):
+    """返回该层全部角色卡；未知层返回空列表（层间不跨读）。"""
+    return [r for r in (load_role(f) for f in LAYER_MAP.get(layer, [])) if r]
+
+
+def cmd_layers():
+    for key, files in LAYER_MAP.items():
+        print(f"{key:10s} {LAYER_NAMES.get(key, key)}：{', '.join(files)}")
+
+
+def cmd_show(layer):
     roles = get_layer_roles(layer)
     if not roles:
         print(f"❌ 未知层: {layer}，可用: {', '.join(LAYER_MAP.keys())}")

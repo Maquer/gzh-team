@@ -12,10 +12,18 @@ gate-G0-check.py：选题阶段判据脚本化（对齐不做清单 + TEAM.md §
 #   4) TEAM.md §3.2 素材包 ≥8 条 / ≥3 A/B 级 / 反例 ≥1 条
 # 用法：python3 gate-G0-check.py <素材包.md>
 # 定位：G0 未过直接砍选题，不进 G1。与 G1 永不可省。
-import sys, re
+import os
+import re
+import sys
 
+if len(sys.argv) >= 2 and sys.argv[1] in ('-h', '--help'):
+    print('用法：python3 gate-G0-check.py <素材包.md>')
+    sys.exit(0)
 if len(sys.argv) < 2:
     print('用法：python3 gate-G0-check.py <素材包.md>')
+    sys.exit(2)
+if not os.path.isfile(sys.argv[1]):
+    print(f'ERROR: 文件不存在 {sys.argv[1]}', file=sys.stderr)
     sys.exit(2)
 
 t = open(sys.argv[1]).read()

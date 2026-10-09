@@ -4,17 +4,18 @@
 关键约束：需在 gzh-team 工作目录执行，输出 optimization_results.json + archive_note_*.md
 """
 
-import os
 import json
 import argparse
 from pathlib import Path
 from datetime import datetime
 
 class ArchiveOptimizer:
-    def __init__(self, workspace_dir="/var/minis/shared/gzh-team"):
-        self.workspace_dir = Path(workspace_dir)
+    def __init__(self, workspace_dir=None, tools_file=None, output_dir=None):
+        self.workspace_dir = Path(workspace_dir or Path(__file__).resolve().parent)
+        self.output_dir = Path(output_dir) if output_dir else self.workspace_dir
+        self.output_dir.mkdir(parents=True, exist_ok=True)
         self.decision_log_file = self.workspace_dir / "decision_log.json"
-        self.active_tools_file = self.workspace_dir / "active_tools.json"
+        self.active_tools_file = Path(tools_file) if tools_file else self.workspace_dir / "active_tools.json"
         self.domain_classifications_file = self.workspace_dir / "domain_classifications.json"
         self.redundancy_mapping_file = self.workspace_dir / "redundancy_mapping.json"
         
@@ -38,8 +39,7 @@ class ArchiveOptimizer:
             }
         }
         
-        with open(self.domain_classifications_file, 'w') as f:
-            json.dump(default_data, f, indent=2, ensure_ascii=False)
+        return self._load_or_init(self.domain_classifications_file, default_data)
     
     def load_redundancy_mapping(self):
         default_data = {
@@ -53,14 +53,46 @@ class ArchiveOptimizer:
             }
         }
         
-        with open(self.redundancy_mapping_file, 'w') as f:
-            json.dump(default_data, f, indent=2, ensure_ascii=False)
+        return self._load_or_init(self.redundancy_mapping_file, default_data)
     
+    @staticmethod
+    def _load_or_init(path, default_data):
+        """文件存在则读取；不存在则写入默认值并返回默认值。"""
+        if path.exists():
+            with open(path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(default_data, f, indent=2, ensure_ascii=False)
+        return default_data
+
+    def load_active_tools(self):
+        if not self.active_tools_file.exists():
+            return []
+        with open(self.active_tools_file, 'r', encoding='utf-8') as f:
+            tools = json.load(f)
+        self._tool_records = {t['name']: t for t in tools if 'name' in t}
+        return tools
+
     def classify_domain(self, tool_name, domain_data):
+        """返回 (领域, 优先级)；分类表里没有该工具时返回 (None, None)。"""
+        info = domain_data.get(tool_name)
+        if not info:
+            rec = getattr(self, '_tool_records', {}).get(tool_name, {})
+            if rec.get('domain') and rec.get('priority'):
+                return rec['domain'], rec['priority']
+            return None, None
+        return info.get('category'), info.get('priority')
+
+    def check_environment_viability(self, tool_name):
+        """环境可行性：active_tools.json 中状态为 ARCHIVE/ARCHIVED 视为不可行，其余可行。"""
+        rec = getattr(self, '_tool_records', {}).get(tool_name, {})
+        return str(rec.get('status', 'ACTIVE')).upper() not in ('ARCHIVE', 'ARCHIVED', 'ARCHIVE_ONLY')
+
+    def make_archive_decision(self, tool_name, domain, priority, env_viable, redundancy_map):
         # 检查是否有同领域重合
         if domain in redundancy_map:
             conflict_info = redundancy_map[domain].get(tool_name)
-            if conflict_info and conflict_info == "ARCHIVE":
+            if conflict_info and str(conflict_info).strip().upper().startswith("ARCHIVE"):
                 return "ARCHIVE_ONLY"
         
         # P0-P1-P2三重决策
@@ -80,7 +112,9 @@ class ArchiveOptimizer:
             return "ARCHIVE_ONLY"
     
     def update_archive_note(self, tool_name, decision, timestamp):
-        content = f"""
+        note_file = self.output_dir / f"archive_note_{tool_name}.md"
+        # FORCE_INSTALL（P0）
+        content = f"""# {tool_name}
 > 核心价值：P0 强制执行工具
 > 决策边界：环境不可用则归档
 > P1 借鉴：架构设计与执行流程
@@ -90,7 +124,7 @@ class ArchiveOptimizer:
 {tool_name} 是 P0 级工具，在当前环境中强制执行。
 
 #  核心差异
-# 与同类工具不同之处在于自动化执行能力。
+与同类工具不同之处在于自动化执行能力。
 
 #  P1 借鉴
 从其他工具中借鉴执行流程和架构设计。
@@ -100,14 +134,7 @@ class ArchiveOptimizer:
 
 生成时间：{timestamp}
 """
-        if decision == "FULL_INSTALL":
-            content = f"""# {tool_name}
-            > 核心价值：P0 强制执行工具
-            > 决策边界：环境不可用则归档
-            > P1 借鉴：架构设计与执行流程
-            > 域内边界：iSH 环境限制
-            """
-        elif decision == "PARTIAL_INSTALL":
+        if decision == "PARTIAL_INSTALL":
             content = f"""# {tool_name}
 > 核心价值：P1 部分执行工具
 > 决策边界：环境可用性与领域重合度
@@ -118,7 +145,7 @@ class ArchiveOptimizer:
 {tool_name} 是 P1 级工具，在特定领域有限执行。
 
 #  核心差异
-# 与同类工具不同之处在于边界管理和部分执行能力。
+与同类工具不同之处在于边界管理和部分执行能力。
 
 #  P1 借鉴
 从其他工具中借鉴边界管理和工具池管理。
@@ -128,7 +155,7 @@ class ArchiveOptimizer:
 
 生成时间：{timestamp}
 """
-        else:  # ARCHIVE_ONLY
+        elif decision == "ARCHIVE_ONLY":
             content = f"""# {tool_name}
 > 核心价值：P2/P3 仅归档工具
 > 决策边界：环境不可用 + 领域错位
@@ -139,7 +166,7 @@ class ArchiveOptimizer:
 {tool_name} 归档仅供参考，无实际执行能力。
 
 #  核心差异
-# 与同类工具不同之处在于完全归档且无实际应用。
+与同类工具不同之处在于完全归档且无实际应用。
 
 #  P1 借鉴
 无直接借鉴。
@@ -150,7 +177,7 @@ class ArchiveOptimizer:
 生成时间：{timestamp}
 """
         
-        with open(note_file, 'w') as f:
+        with open(note_file, 'w', encoding='utf-8') as f:
             f.write(content)
         
         # 记录决策日志
@@ -224,12 +251,12 @@ class ArchiveOptimizer:
         print(f"决策分布: {self.get_decision_distribution(results)}")
     
     def save_results(self, results):
-        results_file = self.workspace_dir / "optimization_results.json"
+        results_file = self.output_dir / "optimization_results.json"
         with open(results_file, 'w') as f:
             json.dump(results, f, indent=2, ensure_ascii=False)
         
         # 生成统计报告
-        report_file = self.workspace_dir / "optimization_report.md"
+        report_file = self.output_dir / "optimization_report.md"
         with open(report_file, 'w') as f:
             f.write("# 归档不装优化报告\n\n")
             f.write(f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
@@ -242,7 +269,7 @@ class ArchiveOptimizer:
             total = len(results)
             
             for decision, count in decision_counts.items():
-                ratio = (count / total) * 100
+                ratio = (count / total) * 100 if total else 0
                 f.write(f"| {decision} | {count} | {ratio:.1f}% |\n")
             
             f.write("\n## 详细结果\n\n")
@@ -271,7 +298,7 @@ def main():
     
     args = parser.parse_args()
     
-    optimizer = ArchiveOptimizer()
+    optimizer = ArchiveOptimizer(tools_file=args.tools, output_dir=args.output)
     optimizer.run_optimization()
 
 if __name__ == "__main__":

@@ -97,7 +97,6 @@ def font(path, size, index=2):
             return ImageFont.truetype(path, size)
         except Exception:
             return None
-    return im
 
 
 def measured(draw, text, fnt, max_w):
@@ -191,7 +190,6 @@ def _cover_impl(title, sub, date, out, seal=True, mode='title', summary_lines=No
         max_w = int(HEAD_W * 0.70)
         lines = measured(d, title.replace('，', ' '), f_title, max_w)
         lh = f_title.size + 12
-        total = lh * len(lines)
         top = 104 if len(lines) <= 2 else 92
         y = top
         for ln in lines:

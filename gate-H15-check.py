@@ -3,9 +3,14 @@
 用法：python3 gate-H15-check.py <尾图路径> [内容文本] — 发布前必跑
 关键约束：exit 0=PASS，exit 1=FAIL；违规词/导流词/高度>800px均阻断
 """
+import subprocess
 import sys
-import re
 from pathlib import Path
+
+from PIL import Image
+
+MAX_HEIGHT = 800          # 高度 ≤800px（过长会被压缩），见 docs/visual/tail-image-spec.md
+ALLOWED_WIDTHS = (900, 1080)  # 宽度与正文一致
 
 # 违规词列表
 PROHIBITED_WORDS = [
@@ -21,11 +26,25 @@ LEAD_KEYWORDS = [
 
 
 def check_dimensions(image_path):
+    """尺寸检查：高度 >800px 阻断；宽度非 900/1080 仅提示。返回 (ok, msg)。"""
     try:
-        import subprocess
+        with Image.open(image_path) as im:
+            w, h = im.size
+    except Exception as e:
+        return False, f"无法读取图片: {e}"
+    if h > MAX_HEIGHT:
+        return False, f"高度 {h}px > {MAX_HEIGHT}px"
+    if w not in ALLOWED_WIDTHS:
+        return True, f"WARN: 宽度 {w}px，建议 {' 或 '.join(map(str, ALLOWED_WIDTHS))}px"
+    return True, None
+
+
+def check_prohibited_text(image_path):
+    """OCR 检查违规词/导流词。返回 (ok, msg)；OCR 不可用时放行并给出 WARN。"""
+    try:
         result = subprocess.run(
-            ["apple-vision", "ocr", image_path, "--lang", "zh-Hans", "--level", "fast"],
-            capture_output=True, text=True
+            ["apple-vision", "ocr", str(image_path), "--lang", "zh-Hans", "--level", "fast"],
+            capture_output=True, text=True, timeout=60
         )
         if result.returncode != 0:
             return True, 'WARN: apple-vision OCR 返回码异常（门禁未阻断）'
@@ -42,7 +61,7 @@ def check_dimensions(image_path):
         if issues:
             return False, "; ".join(issues)
         return True, None
-    except Exception as e:
+    except Exception:
         return True, 'WARN: apple-vision 不可用（门禁未阻断）'
 
 
@@ -72,7 +91,7 @@ def main():
     # H15-1: 尺寸检查
     dim_ok, dim_msg = check_dimensions(image_path)
     if dim_ok:
-        print("H15-1 尺寸: PASS")
+        print(f"H15-1 尺寸: {dim_msg}" if dim_msg else "H15-1 尺寸: PASS")
     else:
         print(f"H15-1 尺寸: FAIL - {dim_msg}")
         results.append("H15-1")

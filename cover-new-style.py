@@ -3,8 +3,14 @@
 新版封面生成器 - 精准复刻「AI面试恐怖谷」风格
 尺寸：900x383
 """
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import os
+import sys
+
+from PIL import Image, ImageDraw, ImageFont
+
+# 仓库根目录（原为 /var/minis/shared/gzh-team）与共享工具目录（仓库的上一级）
+GZH_TEAM = os.path.dirname(os.path.abspath(__file__))
+SHARED_DIR = os.environ.get('GZH_SHARED_DIR', os.path.dirname(GZH_TEAM))
 
 # 颜色
 RED = (194, 69, 60)
@@ -160,7 +166,8 @@ if f_bold_14:
     draw.text((x, y), date_text, fill=RED, font=f_bold_14)
 
 # 保存
-out_path = '/var/minis/shared/gzh-team/选题库/ai-agent-ecosystem-20261006/封面图.png'
+out_path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(GZH_TEAM, 'assets', 'out', '封面图-新风格.png')
+os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
 img.save(out_path, 'PNG')
 print(f"✅ 封面生成成功：{os.path.getsize(out_path)} 字节")
 print(f"尺寸：{img.size}")

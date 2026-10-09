@@ -3,7 +3,6 @@
 摘要型封面图生成器（900×383）
 4行小字关键词左对齐，无标题，品牌红条+印章
 """
-import sys, os
 from PIL import Image, ImageDraw, ImageFont
 
 # 品牌色
@@ -38,7 +37,6 @@ def make_summary_cover(summaries, date="2026.10", out_path=None):
     
     # 字体路径
     font_dir = "/usr/share/fonts/noto"
-    f_title = font(f"{font_dir}/NotoSansCJK-Bold.ttc", 28)
     f_sub = font(f"{font_dir}/NotoSansCJK-Regular.ttc", 18)
     f_date = font(f"{font_dir}/NotoSansCJK-Regular.ttc", 14)
     

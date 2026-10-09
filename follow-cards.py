@@ -4,7 +4,11 @@ follow-cards.py：生成关注首图和尾图（确定性 PIL）
 用法：发布前调用 --qr qr.png [--name 账号名] [--points "要点1,要点2"]
 关键约束：零 AI 依赖，纯 PIL；无 --qr 时二维码为占位框，正式发布须替换
 """
-import argparse, os, subprocess, sys
+import argparse
+import os
+import subprocess
+import sys
+
 from PIL import Image, ImageDraw, ImageFont
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -54,6 +58,13 @@ def f(size, bold=True):
 
 
 def tw(draw, text, font):
+    """文本宽高。"""
+    b = draw.textbbox((0, 0), text, font=font)
+    return b[2] - b[0], b[3] - b[1]
+
+
+def wrap(draw, text, font, max_w):
+    """按像素宽度逐字断行；行首不留标点。"""
     lines, cur = [], ''
     for ch in text:
         w, _ = tw(draw, cur + ch, font)

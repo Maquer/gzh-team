@@ -206,7 +206,7 @@ def main():
         elif has_red:
             results.append({'项': '账号健康状态', '状态': 'FAIL',
                            '依据': f'读 {label_rel}：🔴 标签仍在，常规发布暂停'})
-            fails.append(f'账号健康状态 FAIL：🔴 标签仍在，常规发布不走此门禁')
+            fails.append('账号健康状态 FAIL：🔴 标签仍在，常规发布不走此门禁')
         else:
             results.append({'项': '账号健康状态', '状态': 'PASS',
                            '依据': f'读 {label_rel}：无 🔴 且无待查，标签已解除或无记录'})
@@ -223,7 +223,7 @@ def main():
     if args.json:
         print(json.dumps({'pass': pass_count, 'fail': fail_count, 'warn': warn_count, 'skip': skip_count, 'results': results}, ensure_ascii=False, indent=2))
     else:
-        print(f'G7 发布门禁检查')
+        print('G7 发布门禁检查')
         print(f'{"─"*50}')
         for r in results:
             icon = {'PASS': '✅', 'FAIL': '❌', 'WARN': '⚠️', 'SKIP': '⏭️'}.get(r['状态'], '❓')
@@ -231,7 +231,7 @@ def main():
         print(f'{"─"*50}')
         print(f'PASS: {pass_count} | FAIL: {fail_count} | WARN: {warn_count} | SKIP: {skip_count}')
         if fails:
-            print(f'\n❌ FAIL 项:')
+            print('\n❌ FAIL 项:')
             for f in fails:
                 print(f'  - {f}')
 

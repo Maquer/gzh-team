@@ -19,8 +19,13 @@ import sys
 import json
 import subprocess
 from pathlib import Path
+import os
 
-SANITIZE = "/var/minis/shared/sanitize-model-output.py"
+# 仓库根目录（原为 /var/minis/shared/gzh-team）与共享工具目录（仓库的上一级）
+GZH_TEAM = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SHARED_DIR = os.environ.get('GZH_SHARED_DIR', os.path.dirname(GZH_TEAM))
+
+SANITIZE = os.path.join(SHARED_DIR, "sanitize-model-output.py")
 TMP = "/tmp/_gzh_raw.md"
 
 

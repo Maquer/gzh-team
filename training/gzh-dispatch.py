@@ -12,10 +12,18 @@ company-mode.py 是 6 个通用后端（coding/writing/research/decision/explain
   python3 gzh-dispatch.py "写公众号正文" --role-card 02-主笔 --dry-run
   python3 gzh-dispatch.py "写公众号正文" --role-card 02-主笔 --backend writing
 """
-import sys, json, re, argparse, subprocess
+import argparse
+import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
-SKILL_CARD_DIR = Path("/var/minis/shared/gzh-team/training/skills")
+# 仓库根目录（原为 /var/minis/shared/gzh-team）与共享工具目录（仓库的上一级）
+GZH_TEAM = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SHARED_DIR = os.environ.get('GZH_SHARED_DIR', os.path.dirname(GZH_TEAM))
+
+SKILL_CARD_DIR = Path(GZH_TEAM) / "training" / "skills"
 # v1.6 (2026-09-20)：编号对齐 docs/roles。见 training/MAPPING.md。
 GZH_ROLE_CARDS = {
     "01-负责人": "01-负责人.md",
@@ -51,7 +59,7 @@ def load_skill_card(role_name):
 
 def load_playbook(task_type):
     """从 .playbooks.json 找匹配 playbook；文件缺失返回 None"""
-    pf = Path("/var/minis/shared/.playbooks.json")
+    pf = Path(SHARED_DIR) / ".playbooks.json"
     if not pf.exists():
         return None
     try:
@@ -101,10 +109,14 @@ def main():
         print(prompt)
         return 0
 
-    cmd = ["python3", "/var/minis/shared/company-mode.py", "run", args.task,
-           "--backend", backend]
+    runner = os.environ.get("COMPANY_MODE", os.path.join(SHARED_DIR, "company-mode.py"))
+    if not os.path.isfile(runner):
+        print("❌ 未找到执行器 %s（可用环境变量 COMPANY_MODE 指定），可先用 --dry-run 查看 prompt" % runner,
+              file=sys.stderr)
+        return 2
+    cmd = [sys.executable, runner, "run", prompt, "--backend", backend]
     print("（装配完成，执行交给 company-mode.py；技能卡已写入 prompt）")
-    return 0
+    return subprocess.call(cmd)
 
 
 if __name__ == "__main__":

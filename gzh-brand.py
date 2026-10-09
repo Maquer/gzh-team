@@ -10,7 +10,11 @@ import os
 import subprocess
 import sys
 
-TEAM = '/var/minis/shared/gzh-team'
+# 仓库根目录（原为 /var/minis/shared/gzh-team）与共享工具目录（仓库的上一级）
+GZH_TEAM = os.path.dirname(os.path.abspath(__file__))
+SHARED_DIR = os.environ.get('GZH_SHARED_DIR', os.path.dirname(GZH_TEAM))
+
+TEAM = GZH_TEAM
 OUT = f'{TEAM}/assets/out'
 BASELINE_DOC = f'{TEAM}/BASELINE.md'
 

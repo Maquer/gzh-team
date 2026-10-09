@@ -1,8 +1,29 @@
 """
-link-check.py：文章链接有效性检查工具
-用法：python3 link-check.py <article.md>
-关键约束：需指定文章路径，检查所有外链
+link-check.py：拆分结构审计（A1-A6）
+检查 split.py 的 MAP 覆盖、拆分段落逐字一致、frontmatter id 唯一、
+相对链接无悬空、manifest 与实际文件一致、token 预算。
+用法：python3 link-check.py
+关键约束：依赖冻结源 TEAM.md.bak-pre-split；exit 0=PASS, 1=FAIL, 2=缺少冻结源
 """
+import glob
+import io
+import json
+import os
+import re
+import sys
+
+SRC = 'TEAM.md.bak-pre-split'
+if not os.path.exists(SRC):
+    print('link-check.py: 未找到冻结源 %s（开源版不附带），跳过审计。' % SRC, file=sys.stderr)
+    sys.exit(2)
+O = io.open(SRC, encoding='utf-8').read().split('\n')
+N = len(O)
+fails = []
+warns = []
+# 从 split.py 读取 MAP，保证与拆分脚本同源
+s = io.open('split.py', encoding='utf-8').read().split('\n')
+i = [k for k, l in enumerate(s) if l.startswith('MAP = [')][0]
+
 j=[k for k,l in enumerate(s[i+1:],i+1) if l.strip()==']'][0]
 d={'N':N};exec('\n'.join(s[i:j+1]),d);M=sorted(d['MAP'])
 # A1 ranges: in-bounds / no overlap / full coverage
@@ -32,8 +53,10 @@ ids=[]; badfm=0
 for p in prods:
     L=io.open(p,encoding='utf-8').read().split('\n')
     if L[0]!='---': badfm+=1; continue
-    k=[n for n in range(0,min(10,len(L))) if L[n]=='---'][1]
-    fm=dict(x.split(':',1) for x in L[1:k] if ':' in x)
+    seps=[n for n in range(0,min(10,len(L))) if L[n]=='---']
+    if len(seps)<2: badfm+=1; continue
+    fm=dict(x.split(':',1) for x in L[1:seps[1]] if ':' in x)
+    if 'id' not in fm: badfm+=1; continue
     ids.append(fm['id'].strip())
 dup=[x for x in set(ids) if ids.count(x)>1]
 if dup or badfm: fails.append('A3 dup=%s missing_fm=%d'%(dup,badfm))

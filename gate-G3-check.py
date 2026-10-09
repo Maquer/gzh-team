@@ -4,6 +4,12 @@ gate-G3-check.py：G3门禁检查（标题策略/字数/结构）
 用法：python3 gate-G3-check.py <参数>
 关键约束：exit 0=PASS, 1=FAIL
 """
+import argparse
+import json
+import os
+import re
+import sys
+
 TEMPLATES = {
     '标准观点': {'sections': (3,5), 'words_per_section': (200,350), 'total_words': (800,1200), 'gold_min': 2},
     '评测横比': {'sections': (5,7), 'words_per_section': (150,300), 'total_words': (800,1500), 'gold_min': 3},
@@ -98,7 +104,7 @@ def main():
         print(f'{"─"*50}')
         print(f'PASS: {pass_count} | FAIL: {fail_count} | WARN: {warn_count}')
         if fails:
-            print(f'\n❌ FAIL 项:')
+            print('\n❌ FAIL 项:')
             for f in fails:
                 print(f'  - {f}')
 

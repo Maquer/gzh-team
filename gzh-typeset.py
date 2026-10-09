@@ -28,3 +28,27 @@ gzh-typeset.py：公众号排版工具（Markdown→微信HTML）
 
 # 历史事故：2026-09-20 16:00 推送 AI 写作副业稿时，团队版排版稿的报价表还是 `| --- |` 裸 markdown，
 # 微信渲染为裸文字 → 用手工"修复版.html"临时绕过。本次融合后，表格自动转 HTML <table>，bug 根治。
+
+
+import os
+import subprocess
+import sys
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_CANDIDATES = [
+    os.environ.get('GZH_TYPESET_IMPL', ''),
+    os.path.join(_HERE, '..', 'gzh-typeset', 'gzh-typeset.py'),
+]
+
+
+def main():
+    for impl in _CANDIDATES:
+        if impl and os.path.isfile(impl) and os.path.abspath(impl) != os.path.abspath(__file__):
+            sys.exit(subprocess.call([sys.executable, impl] + sys.argv[1:]))
+    print('gzh-typeset.py: 未找到融合版实现（../gzh-typeset/gzh-typeset.py），'
+          '可用环境变量 GZH_TYPESET_IMPL 指定路径。', file=sys.stderr)
+    sys.exit(2)
+
+
+if __name__ == '__main__':
+    main()

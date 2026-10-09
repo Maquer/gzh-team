@@ -30,6 +30,23 @@ SUBJECT_CN_THRESHOLD = 4
 
 
 def check_ocr(path, level='fast'):
+    """调用 apple-vision OCR，返回 blocks 列表；调用失败返回 None。"""
+    try:
+        r = subprocess.run(
+            ['apple-vision', 'ocr', path, '--lang', 'zh-Hans,en', '--level', level, '-q'],
+            capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if r.returncode != 0:
+        return None
+    try:
+        return json.loads(r.stdout).get('blocks', []) if r.stdout.strip() else []
+    except ValueError:
+        return None
+
+
+def check_ocr_dual(path):
+    """fast 为主；accurate 只做兜底补充（accurate 在纯色区会造字，不能直接全收）。"""
     fast = check_ocr(path, 'fast')
     accurate = check_ocr(path, 'accurate')
     if fast is None and accurate is None:
@@ -153,7 +170,7 @@ def main():
                 print('  （空）')
             status = 'FAIL' if r['fail'] else ('PASS_WITH_WARN' if r['warn'] else 'PASS')
             print(f'  → {status}')
-        print(f'\n=== 门禁判定 ===')
+        print('\n=== 门禁判定 ===')
         if any_fail:
             print('FAIL: 至少一张图片命中 prompt 关键词（元数据被画进图）')
         elif any_warn:

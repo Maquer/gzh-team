@@ -12,11 +12,11 @@ component-registry.py — 工具链变更同步注册表
 变更记录：
   2026-10-04: v0.1.0 首次创建，基于 gzh-team 当天事故分析
 """
-import sys, os, json, re
-from pathlib import Path
 
-TEAM = '/var/minis/shared/gzh-team'
-SHARED = '/var/minis/shared'
+import os
+
+TEAM = os.path.dirname(os.path.abspath(__file__))
+SHARED = os.environ.get('GZH_SHARED_DIR', os.path.dirname(TEAM))
 
 # ── 组件定义（唯一真源）──────────────────────────────────────────────
 COMPONENTS = {

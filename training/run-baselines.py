@@ -4,7 +4,7 @@
 跑 7 个非主笔岗的基线，产出基线数据填 TRAINING.md §2 表格。
 用法：python3 run-baselines.py --model <model_id>
 """
-import subprocess, json, os, io, sys, time, argparse, re
+import subprocess, json, os, io, time, argparse, re
 BASE = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR = os.path.join(BASE, 'baselines')
 

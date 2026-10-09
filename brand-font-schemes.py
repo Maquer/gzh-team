@@ -4,6 +4,7 @@
 关键约束：不直接运行，仅供 import；需要 Noto 字体文件存在
 """
 import os
+
 from PIL import Image, ImageDraw, ImageFont
 
 BRAND = '<YOUR_BRAND>'
@@ -34,7 +35,8 @@ def fnt(name, size, index=2):
 LOGO_A = [('弎', 'LXGW'), ('水', 'LXGW'), ('野', 'MaShanZheng'), ('记', 'MaShanZheng')]
 LOGO_SIZE_A = 42
 
-QR_PATH = '/var/minis/shared/gzh-team/assets/brand/qr-code.png'
+HERE = os.path.dirname(os.path.abspath(__file__))
+QR_PATH = os.path.join(HERE, 'assets', 'brand', 'qr-code.png')
 QR_SIZE = 240
 
 
@@ -166,6 +168,40 @@ def make_tail(out_path, next_title=None):
     return out_path
 
 
+def make_follow_cover(out_path):
+    """首图·关注引导：文首横幅（1080x216），品牌名 + 英文 + 关注 CTA + slogan。"""
+    W, H = 1080, 216
+    img = Image.new('RGB', (W, H), PAPER)
+    d = ImageDraw.Draw(img)
+    d.rectangle([0, H - 6, W, H], fill=RED)       # 底部品牌红条
+
+    logo = render_logo(LOGO_SIZE_A, LOGO_A, RED)
+    lx, ly = 56, (H - logo.height) // 2 - 16
+    img.paste(logo, (lx, ly), logo)
+    yeji_left = lx + getattr(logo, 'yeji_x', 0)
+    shui_right = lx + getattr(logo, 'shui_right', yeji_left)
+    shu_x0 = lx + getattr(logo, 'shu_x0', 0)
+    f_en = fnt('Sans', 14)
+    en_top = ly + logo.height + 3
+    bbox = d.textbbox((yeji_left, en_top), EN, font=f_en, anchor='lt')
+    en_mid = (bbox[1] + bbox[3]) / 2
+    d.rectangle([shu_x0, int(en_mid), shui_right, int(en_mid) + 1], fill=RED)
+    d.text((yeji_left, en_top), EN, font=f_en, fill=GREY, anchor='lt')
+
+    # 右侧：关注 CTA + slogan（右对齐）
+    f_cta = fnt('Sans', 30)
+    cta = '点击上方蓝字 · 关注不迷路'
+    cw = d.textbbox((0, 0), cta, font=f_cta)[2]
+    d.text((W - 56 - cw, 62), cta, font=f_cta, fill=INK)
+    f_slog = fnt('Sans', 18)
+    sw = d.textbbox((0, 0), SLOGAN, font=f_slog)[2]
+    d.text((W - 56 - sw, 118), SLOGAN, font=f_slog, fill=GREY)
+
+    img.save(out_path)
+    print(out_path)
+    return out_path
+
+
 def make_preview(out_path):
     W, H = 450, 200
     img = Image.new('RGB', (W, H), PAPER)
@@ -217,7 +253,7 @@ def make_preview(out_path):
 
 
 if __name__ == '__main__':
-    out_dir = '/var/minis/shared/gzh-team/assets/out'
+    out_dir = os.path.join(HERE, 'assets', 'out')
     os.makedirs(out_dir, exist_ok=True)
     make_tail(f'{out_dir}/尾图-v4.png')
     make_tail(f'{out_dir}/尾图-v4-预告.png', next_title='Prompt 模板配方')

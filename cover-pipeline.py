@@ -4,10 +4,13 @@ cover-pipeline.py：封面流水线（双模式：去水印→裁2.35:1→叠标
 用法：发布前调用，--src <AI底图> --title "标题" 或 --base pil --layout structured
 关键约束：exit 0=全绿 / 1=H11未过 / 2=输入错误；需指定输入图片或 --base pil
 """
-import argparse, json, subprocess, sys
-from PIL import Image, ImageDraw, ImageFont
-from PIL import ImageDraw as _id
+import argparse
+import json
 import math
+import subprocess
+import sys
+
+from PIL import Image, ImageDraw, ImageFont
 
 from cover_styles import DESIGNER_STYLES
 
@@ -18,6 +21,17 @@ WATERMARK_KEYWORDS = ['AI生成', 'AI 生成', '日日新', 'sensenova', '即梦
 
 
 def make_gradient(w, h, top, bottom):
+    """自上而下的线性渐变。"""
+    img = Image.new('RGB', (w, h))
+    d = ImageDraw.Draw(img)
+    for y in range(h):
+        k = y / max(h - 1, 1)
+        d.line([(0, y), (w, y)], fill=tuple(int(top[i] + (bottom[i] - top[i]) * k) for i in range(3)))
+    return img
+
+
+def make_radial_gradient(w, h, center_color, edge_color):
+    """中心→四角的径向渐变（用于叠加高光）。"""
     img = Image.new('RGB', (w, h))
     pixels = img.load()
     cx, cy = w // 2, h // 2
@@ -33,15 +47,33 @@ def make_gradient(w, h, top, bottom):
 
 
 def check_text(path, level='fast'):
+    """调用 apple-vision OCR，返回 blocks 列表；调用失败返回 None。"""
+    try:
+        r = subprocess.run(
+            ['apple-vision', 'ocr', path, '--lang', 'zh-Hans,en', '--level', level, '-q'],
+            capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if r.returncode != 0:
+        return None
+    try:
+        return json.loads(r.stdout).get('blocks', []) if r.stdout.strip() else []
+    except ValueError:
+        return None
+
+
+def check_text_dual(path):
+    """fast 为主；accurate 只做兜底补充（accurate 在纯色区会造字，不能直接全收）。"""
     fast = check_text(path, 'fast')
     accurate = check_text(path, 'accurate')
     if fast is None and accurate is None:
         return None
     blocks = list(fast or [])
     accurate_wm = []
+    seen = {b.get('text', '').strip() for b in blocks}
     for b in (accurate or []):
         t = b.get('text', '').strip()
-        if t and any(kw.lower() in t.lower() for kw in WATERMARK_KEYWORDS):
+        if t and t not in seen and any(kw.lower() in t.lower() for kw in WATERMARK_KEYWORDS):
             accurate_wm.append(b)
     blocks.extend(accurate_wm)
     return blocks
@@ -68,7 +100,7 @@ def main():
                     help='simple=右对齐标题(默认) structured=左侧标题栈+强调条+清单+日期徽章')
     ap.add_argument('--points', default='', help='编号清单项，逗号分隔（仅 structured）')
     ap.add_argument('--date', default='', help='日期徽章文字（仅 structured，如 "2026.09"）')
-    ap.add_argument('--out', default='/var/minis/attachments/cover-out.png')
+    ap.add_argument('--out', default='cover-out.png')
     ap.add_argument('--keep-wm', action='store_true',
                     help='保留水印（自动满足 AI 标识，但封面带角标）')
     a = ap.parse_args()
@@ -287,7 +319,7 @@ def main():
             put((TARGET_W - (b2[2] - b2[0]) - 40, ty + th_ + 8), a.sub,
                 sub_fill, f_sub, stroke_w=stroke_w)
         text_zone = (420, 70, 890, 320)
-        print(f'[版式] simple: 右对齐标题')
+        print('[版式] simple: 右对齐标题')
 
     im.save(a.out, 'PNG')
     print(f'[输出] {a.out}  ({__import__("os").path.getsize(a.out)//1024}KB)')
@@ -305,14 +337,16 @@ def main():
     for s in mine:
         SUBSTR_INCLUDE.extend([t.strip() for t in s.split() if len(t.strip()) >= 2])
 
-    def is_noise_block(text):
-        ox, oy, ow, oh = TEXT_EXCL_ZONE
-        ix = max(x, ox); iy = max(y, oy)
-        iw = min(x + w, ox + ow) - ix
-        ih = min(y + h, oy + oh) - iy
+    def in_excl_zone(x, y, w, h):
+        """OCR bbox（归一化 x,y,w,h）与标题区（像素 x1,y1,x2,y2）重叠 ≥50% → 豁免。"""
+        x, y, w, h = x * TARGET_W, y * TARGET_H, w * TARGET_W, h * TARGET_H
+        zx1, zy1, zx2, zy2 = TEXT_EXCL_ZONE
+        ix = max(x, zx1); iy = max(y, zy1)
+        iw = min(x + w, zx2) - ix
+        ih = min(y + h, zy2) - iy
         if iw <= 0 or ih <= 0:
             return False
-        return (iw * ih) >= 0.5 * (w * h)
+        return (iw * ih) >= 0.5 * max(w * h, 1e-9)
 
     print('[H11] fast OCR 检出:')
     fail = False
