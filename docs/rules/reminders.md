@@ -3,7 +3,7 @@
 > **位置**：`docs/rules/reminders.md`
 > **建立日期**：2026-09-21
 > **上位规则**：`docs/rules/gate-mapping.md`（门禁归属表）
-> **底层工具**：`countdown-scheduler.py`（`/var/minis/shared/`）
+> **底层工具**：`countdown-scheduler.py`（`../`）
 > **触发场景**：任何岗位在执行任务过程中，识别出"这事过 N 小时/天/周后再看更合适"时，不能靠人肉记忆，必须走登记流程。
 
 ---
@@ -97,7 +97,7 @@
 3. 决策：
    - **通过**：填 `confirmed_by` / `confirmed_at`，改 `status: active`，从 `pending.md` 移到 `active.md`
    - **驳回**：填 `status: rejected` + `reject_reason`，留在 `pending.md` 底部供审计
-4. 审批后调用：`python3 /var/minis/shared/countdown-scheduler.py add --name <REM-ID> --countdown <X> --kind prompt --prompt "<action>"`
+4. 审批后调用：`python3 ../countdown-scheduler.py add --name <REM-ID> --countdown <X> --kind prompt --prompt "<action>"`
 
 ### 6.3 触发
 

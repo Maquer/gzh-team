@@ -13,21 +13,21 @@ source_lines: "795-826"
 | `hai-bao-she-ji` | Skill+脚本 | ✅ | `skills/hai-bao-she-ji/scripts/generate_mondo_enhanced.py` | 37 设计师风格 + 6 维原子组合 + 8 混色预设 + 7 种比例 |
 | `jimeng_provider.py` | 后端脚本 | ✅ | `skills/hai-bao-she-ji/scripts/jimeng_provider.py` | 即梦后端，68 积分/天免费。cookie 从浏览器 offload 自动取最新 |
 | `minis-model-use` | CLI | ✅ | `minis-model-use run --model sensenova-u1-fast` | 模型生图，2048×2048 PNG，~40s/张。size 只吃 13 种固定值，连跑需 sleep 20s+ |
-| **`cover-pipeline.py`** | 脚本 | ✅ 黄金测试 3/3 | `shared/gzh-team/cover-pipeline.py` | **封面一条命令流水线**：去水印（纯色覆盖）→ 裁 2.35:1 → 叠标题 → OCR 门禁自检（自动区分幻觉/真实文字）。退出码 0=全绿 / 1=H11 未过。见下方「封面流水线」 |
+| **`cover-pipeline.py`** | 脚本 | ✅ 黄金测试 3/3 | `cover-pipeline.py` | **封面一条命令流水线**：去水印（纯色覆盖）→ 裁 2.35:1 → 叠标题 → OCR 门禁自检（自动区分幻觉/真实文字）。退出码 0=全绿 / 1=H11 未过。见下方「封面流水线」 |
 | `apple-vision ocr` | CLI | ✅ | `apple-vision ocr <图> --lang zh-Hans,en --level fast` | H11 门禁执行器。**只用 fast 级**；accurate 在纯色区造字 |
 
  **即梦用法**：
 ```bash
-python3 /var/minis/skills/hai-bao-she-ji/scripts/generate_mondo_enhanced.py \
+python3 <SKILLS_DIR>/hai-bao-she-ji/scripts/generate_mondo_enhanced.py \
   "<subject>" poster --style saul-bass --provider jimeng --aspect-ratio 21:9
 ```
 
 **封面流水线（推荐，一步到位）**：
 ```bash
-python3 /var/minis/shared/gzh-team/cover-pipeline.py \
+python3 cover-pipeline.py \
   --src <出图路径> --wm "<x1,y1,x2,y2>" \
   --title "你的 AI 文章标注了吗？" --sub "副标题" \
-  --out /var/minis/attachments/cover.png
+  --out attachments/cover.png
 # 想保留水印（自动满足 AI 标识）改加 --keep-wm，并去掉 --wm
 ```
 

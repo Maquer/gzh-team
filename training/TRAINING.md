@@ -1,7 +1,7 @@
 # 公众号团队培训体系 v1.0
 
 > 生成 2026-09-18 | 依据 TEAM.md v1.3 + VALIDATION.md 实测数据
-> 考核入口：`python3 /var/minis/shared/gzh-team/training/train-check.py <稿件>`
+> 考核入口：`python3 training/train-check.py <稿件>`
 
 ---
 
@@ -449,8 +449,7 @@ train-check.py 不查、技能卡不提示，等于规则悬空。对齐 SOUL.md
 
 **培训闭环**：v1.0 建立卡 + 判定 + 差距记录（09-18），v2.0 把 09-19 新增规则接进判定体系（09-19）。
 下一步若继续：跑 7 岗基线，或改多模型后端重跑 A/B。
-[CONTEXT OFFLOADED] Content (~1253 tokens, 2758 bytes) saved to: /var/minis/offloads/tools/file_write_634d027831de.txt
-Use file_read tool to retrieve if needed.
+
 ### 09-结构梳理岗补测（2026-09-20 00:14）
 
 补 dispatch 的 ROLE_CARDS 和 ROLE_BACKEND 映射（`09-结构梳理 → 09-结构梳理.md / decision`），
@@ -516,7 +515,7 @@ org.md §7 列 12 项团队资产，实际只建 2 项（选题库 / 不做清�
 
 **P1-2 工具脚本双份：不做改动（诊断修正）**
 
-`gzh-team/gzh-typeset.py` 1856B 不是"占位符"，是**故意保留的兼容 shim**：注释明写"真身已迁到 shared/gzh-typeset/gzh-typeset.py 融合版"，且记录了 09-20 16:00 表格 bug 的历史事故。删了会破坏旧命令路径。保留 shim 是设计意图。
+`gzh-team/gzh-typeset.py` 1856B 不是"占位符"，是**故意保留的兼容 shim**：注释明写"真身已迁到 ../gzh-typeset/gzh-typeset.py 融合版"，且记录了 09-20 16:00 表格 bug 的历史事故。删了会破坏旧命令路径。保留 shim 是设计意图。
 
 **未做（P2）**
 - 09-20 daily log 里记的"意图≠动作/紧迫感诱导词/占位符"3 处新增未写入 docs——是记录污染还是真的没写？需追溯 09-19 会话确认

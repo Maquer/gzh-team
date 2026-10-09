@@ -76,7 +76,7 @@ source_lines: "334-418"
 | `WX_APPID` | 直接显示 |
 | `WX_APPSECRET` | 「重置」生成，**只显示一次**，当场存环境变量 |
 
-> 配置入口：[设置 → 环境变量](minis://settings/environments)
+> 配置入口：运行环境的「环境变量」设置
 
 推送 4 步：
 

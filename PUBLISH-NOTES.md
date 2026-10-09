@@ -1,6 +1,32 @@
-# CHANGELOG · 公众号写作团队 v2.5.1
+# 发布说明 · 公众号写作团队 v3.1.0
 
-> 发布说明：2026-09-29 | 仓库：https://github.com/Maquer/gzh-team
+> 最后更新：2026-10-10 | 仓库：https://github.com/Maquer/gzh-team
+
+---
+
+## v3.1.0 · 2026-10-10 全量脚本修复 + 文档重写
+
+**本次变更**：修复 v3.0.0 整理时被破坏的脚本，并按修复结果重写仓库说明。详见 [CHANGELOG.md](CHANGELOG.md) §30。
+
+### 🔧 修复
+
+| 类别 | 改动 |
+|------|------|
+| **被注释 / 错位的代码** | `split.py` `recover.py` `persona.py` `turn-reminders.py` `cover_styles.py` 等恢复可运行；多处「函数头与函数体错位」已拆回正确的函数 |
+| **缺失函数与 import** | 补回 `check_ocr` / `check_ocr_dual` / `check_image`（H11/H12）、`check_dimensions` / `check_prohibited_text`（H15）、`make_radial_gradient` / `check_text_dual` / `in_excl_zone`（cover-pipeline）、`tw` / `wrap`（follow-cards）、`make_follow_cover`（brand-font-schemes）、归档工具的加载/分类/决策逻辑 |
+| **逻辑 bug** | cover-pipeline 标题区豁免：OCR 归一化坐标与像素坐标混比；gzh-dispatch 组装命令从未执行；train-check 紧迫诱导词算了不判；H11 提示阈值与代码不一致 |
+| **路径** | 环境专属绝对路径全部改为相对仓库；共享工具用 `GZH_SHARED_DIR` 指定 |
+| **说明更正** | `link-check.py` = 拆分结构审计、`verify-all.py` = 拆分一致性验证（原说明写成外链检查 / H11-H13 合规） |
+| **代码检查** | pyflakes 由 149 处未定义名称降到 0 报错 |
+
+### 📦 删除
+
+- `desensitize-v1.py`：一次性内容清理脚本，已无用途且会直接覆写文件
+- `docs/README-v2.3.1.md`：过时的仓库说明，内容并入新 README
+
+### 📝 使用方式
+
+见 [README.md](README.md)「快速开始」。
 
 ---
 
@@ -12,7 +38,7 @@
 
 | 类别 | 改动 |
 |------|------|
-| **文档净化** | 移除直接引用 `/var/minis/shared/` 路径，统一改为 skill 调用 |
+| **文档净化** | 移除直接引用 `../` 路径，统一改为 skill 调用 |
 | **依赖标注** | `humanizer-check` 标注为共享工具（非团队自有） |
 | **版本统一** | TEAM.md / README / CHANGELOG 版本号一致性验证通过 |
 
@@ -26,7 +52,7 @@
 - `gate-version-check.py` — 版本一致性门禁（**v2.4.0 新增，防纸面完成事故**）
 
 **工具脚本（15 个）**：
-- `gzh-typeset.py` — 排版引擎（兼容层，实现在 shared/gzh-typeset/）
+- `gzh-typeset.py` — 排版引擎（兼容层，实现在 ../gzh-typeset/）
 - `gzh-brand.py` — 品牌色生成
 - `cover-*.py` / `follow-cards.py` — 封面/首尾图生成
 - `link-check.py` / `verify-all.py` — 链接校验 + 全量验证
@@ -45,7 +71,7 @@
 
 | 工具 | 用途 | 归属 |
 |------|------|------|
-| `humanizer-check` | AI 味检测（H14） | `/var/minis/shared/` 共享 |
+| `humanizer-check` | AI 味检测（H14） | `../` 共享 |
 | `gzh-api-tui-song` skill | API 直推草稿箱 | 已封装，不直接引用路径 |
 | `gzh-pai-ban` skill | 排版组件 | 已封装 |
 
@@ -88,12 +114,10 @@ python3 gate-version-check.py
 
 ---
 
-## v2.3.1 · 2026-09-28 脱敏上传
+## v2.3.1 · 2026-09-28 首次开源发布
 
-> 详见 docs/README-v2.3.1.md
-
-**核心变更**：删除选题库/复盘档案/会议记录，保留职责手册 + 门禁脚本 + 角色卡
+**核心变更**：公开职责手册 + 门禁脚本 + 角色卡；选题库、复盘档案、会议记录等团队内部资料不在仓库内
 
 ---
 
-*本文档由团队自动生成，最后更新：2026-09-29*
+*最后更新：2026-10-10*

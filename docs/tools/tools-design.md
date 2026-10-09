@@ -10,7 +10,7 @@ source_lines: "779-794,876-893"
 
 | 工具 | 类型 | 状态 | 路径/入口 | 用法 |
 |------|------|------|-----------|------|
-| `gzh-typeset.py` | Python | ✅ | `/var/minis/shared/gzh-team/gzh-typeset.py` | Markdown → HTML 排版。5 主题预设 + 荧光笔 + 首尾模板 + 表格转义 |
+| `gzh-typeset.py` | Python | ✅ | `gzh-typeset.py` | Markdown → HTML 排版。5 主题预设 + 荧光笔 + 首尾模板 + 表格转义 |
 | `minis-browser-use` | CLI | ✅ | `minis-browser-use` | 可选：navigate → inject HTML → formatContent() → screenshot 验证（原 gzh-typeset.py 流程） |
 
 

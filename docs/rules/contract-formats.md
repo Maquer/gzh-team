@@ -72,7 +72,7 @@
 | # | 字段名 | 类型 | 必填 | 示例 | 来源 |
 |---|--------|------|:----:|------|------|
 | 1 | 图片名 | string | ✅ | `cover-headline.jpg` | HANDOFF HC-03 |
-| 2 | 路径 | string | ✅ | `/var/minis/shared/gzh-team/assets/images/cover-headline.jpg` | HANDOFF HC-03 |
+| 2 | 路径 | string | ✅ | `assets/images/cover-headline.jpg` | HANDOFF HC-03 |
 | 3 | 用途 | string | ✅ | `封面 / 首图 / 尾图 / 正文插图` | HANDOFF HC-03 |
 | 4 | 尺寸 | string | ✅ | `900×383` | HANDOFF HC-03 |
 | 5 | 来源 | string | ✅ | `实拍 / AI生成` | HANDOFF HC-03 |
@@ -160,7 +160,7 @@
 | # | 字段名 | 类型 | 必填 | 示例 | 来源 |
 |---|--------|------|:----:|------|------|
 | 1 | 素材类型 | string | ✅ | `实拍 / 截图 / 录屏 / 政策文件` | roles/09-photo.md L25 |
-| 2 | 文件路径 | string | ✅ | `/var/minis/shared/gzh-team/assets/materials/unboxing-A.jpg` | roles/09-photo.md L25 |
+| 2 | 文件路径 | string | ✅ | `assets/materials/unboxing-A.jpg` | roles/09-photo.md L25 |
 | 3 | 来源 | string | ✅ | `URL / 拍摄场景 / 文件来源` | roles/09-photo.md L25 |
 | 4 | 采集时间 | datetime | ✅ | `2026-09-26 14:30` | roles/09-photo.md L25 |
 | 5 | 关键区域 | string | ❌ | `"标题区+数据区"`（截图类必填） | roles/09-photo.md L25 |
@@ -209,7 +209,7 @@
 |---|--------|------|:----:|------|------|
 | 1 | 图编号 | string | ✅ | `1 / 2 / 3` | HANDOFF HC-09 |
 | 2 | 对应段落 | string | ✅ | `节2 L20-35` | HANDOFF HC-09 |
-| 3 | 图片路径 | string | ✅ | `/var/minis/.../creative-01.jpg` | HANDOFF HC-09 |
+| 3 | 图片路径 | string | ✅ | `.../creative-01.jpg` | HANDOFF HC-09 |
 | 4 | 尺寸 | string | ✅ | `900×383` | HANDOFF HC-09 |
 
 ### 验收规则
@@ -250,7 +250,7 @@
 
 | # | 字段名 | 类型 | 必填 | 示例 | 来源 |
 |---|--------|------|:----:|------|------|
-| 1 | 图片路径 | string | ✅ | `/var/minis/shared/gzh-team/assets/images/creative-01.jpg` | roles/10-creative.md L28 |
+| 1 | 图片路径 | string | ✅ | `assets/images/creative-01.jpg` | roles/10-creative.md L28 |
 | 2 | 尺寸 | string | ✅ | `900×383`（按 HC-10 标准） | HANDOFF HC-11 |
 | 3 | 品牌色检查 | string | ✅ | `通过 / 未通过（说明：#FF0000 偏差 >5%）` | HANDOFF HC-11 |
 | 4 | OCR检查 | string | ✅ | `无中文 / 有中文（需退回）` | HANDOFF HC-11 |
@@ -365,7 +365,7 @@
 
 | # | 字段名 | 类型 | 必填 | 示例 | 来源 |
 |---|--------|------|:----:|------|------|
-| 1 | 截图路径 | string | ✅ | `/var/minis/.../preview-iphone15.png` | roles/06-design.md L70 |
+| 1 | 截图路径 | string | ✅ | `.../preview-iphone15.png` | roles/06-design.md L70 |
 | 2 | 截图尺寸 | string | ✅ | `393×852`（iPhone 15 视口） | roles/06-design.md L70 |
 | 3 | 设备型号 | string | ✅ | `iPhone 15 / Pixel 7` | roles/06-design.md L70 |
 | 4 | 检查项 | string | ✅ | `无排版破损 / 图片正常 / 文字可读` | roles/06-design.md L70 |
@@ -408,7 +408,7 @@
 
 | # | 字段名 | 类型 | 必填 | 示例 | 来源 |
 |---|--------|------|:----:|------|------|
-| 1 | 图片路径 | string | ✅ | `/var/minis/.../cover.jpg` | roles/05-review.md L31 |
+| 1 | 图片路径 | string | ✅ | `.../cover.jpg` | roles/05-review.md L31 |
 | 2 | AI置信度 | string | ✅ | `高 / 中 / 低` | roles/05-review.md L31 |
 | 3 | 处理方式 | string | ✅ | `保留 / 替换 / 标注` | roles/05-review.md L31 |
 | 4 | 备注 | string | ❌ | `"右下角有AI水印，建议替换或开声明"` | roles/05-review.md L31 |
@@ -430,7 +430,7 @@
 
 | # | 字段名 | 类型 | 必填 | 示例 | 来源 |
 |---|--------|------|:----:|------|------|
-| 1 | 图片路径 | string | ✅ | `/var/minis/.../unboxing-A.jpg` | roles/09-photo.md L19 |
+| 1 | 图片路径 | string | ✅ | `.../unboxing-A.jpg` | roles/09-photo.md L19 |
 | 2 | 来源 | string | ✅ | `实拍 / AI生成` | roles/09-photo.md L19 |
 | 3 | AI声明 | string | ✅ | `已开 / 未开` | roles/09-photo.md L19 |
 

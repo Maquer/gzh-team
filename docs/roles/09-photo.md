@@ -60,4 +60,4 @@ source_lines: "451-496"
 - → **04-管城**：图单需要嵌入正文位置时，提前告知管城每类图的插入点
 - → **06-法度**：图片验真通过后交付；AI图须同步注明"需开AI声明"
 
-minis_url: minis://shared/gzh-team/docs/roles/10-photo.md
+minis_url: docs/roles/10-photo.md

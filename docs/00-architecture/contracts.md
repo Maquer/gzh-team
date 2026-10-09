@@ -59,7 +59,7 @@ source_lines: "460-482,512-533,868-875"
 
 | 工具 | 类型 | 状态 | 路径/入口 | 用法 |
 |------|------|------|-----------|------|
-| `VALIDATION.md` | 文档 | — | `/var/minis/shared/gzh-team/VALIDATION.md` | 岗位自诉可执行性验证（178 行）：3 轮实测 + 8 个样本对照，结论经两次推翻后收敛。改任何岗位自诉前先看 |
-| `SELF-STATEMENT.md` | 文档 | — | `/var/minis/shared/gzh-team/SELF-STATEMENT.md` | 8 岗位第一人称自诉 v1.2，可作 AI agent 角色设定直接粘贴 |
-| `TEAM.md`（本文件） | 文档 | — | `/var/minis/shared/gzh-team/TEAM.md` | 第三人称职责表 + 门禁 + RACI + 交接契约 + 工具清单 |
+| `VALIDATION.md` | 文档 | — | `VALIDATION.md` | 岗位自诉可执行性验证（178 行）：3 轮实测 + 8 个样本对照，结论经两次推翻后收敛。改任何岗位自诉前先看 |
+| `SELF-STATEMENT.md` | 文档 | — | `SELF-STATEMENT.md` | 8 岗位第一人称自诉 v1.2，可作 AI agent 角色设定直接粘贴 |
+| `TEAM.md`（本文件） | 文档 | — | `TEAM.md` | 第三人称职责表 + 门禁 + RACI + 交接契约 + 工具清单 |
 

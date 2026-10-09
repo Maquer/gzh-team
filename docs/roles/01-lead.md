@@ -54,7 +54,7 @@ source_lines: "68-107"
 
 ---
 
-**工具链**：`apple-reminders`——选题排期表存为 Reminders 清单，按周关闭已发选题；G1 选题可进生产时开条目；`docs/reminders/` 登记簿——审批提醒任务（见 `docs/rules/reminders.md`），批准后调 `/var/minis/shared/countdown-scheduler.py add` 注册
+**工具链**：`apple-reminders`——选题排期表存为 Reminders 清单，按周关闭已发选题；G1 选题可进生产时开条目；`docs/reminders/` 登记簿——审批提醒任务（见 `docs/rules/reminders.md`），批准后调 `../countdown-scheduler.py add` 注册
 
 
 > **数值标准**：详见 `docs/rules/standards.md`（选题排期字数/策略/标题标准）

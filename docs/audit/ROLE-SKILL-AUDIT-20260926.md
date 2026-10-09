@@ -196,25 +196,25 @@
 
 | 岗位 | 工具 | 调用路径 | 状态 |
 |------|------|---------|:----:|
-| 01 定规 | `apple-reminders` | `/var/minis/skills/apple-reminders/` | ✅ |
-| 01 定规 | `countdown-scheduler.py` | `/var/minis/shared/countdown-scheduler.py` | ✅（P0 修复） |
-| 02 衡度 | `re-souo-ju-he` | `/var/minis/skills/re-souo-ju-he/` | ✅ |
-| 02 衡度 | `anysearch` | `/var/minis/skills/anysearch/` | ✅ |
-| 02 衡度 | `exa-search` | `/var/minis/skills/exa-search/` | ✅ |
-| 02 衡度 | `web-content-extractor` | `/var/minis/skills/web-content-extractor/` | ✅ |
+| 01 定规 | `apple-reminders` | `<SKILLS_DIR>/apple-reminders/` | ✅ |
+| 01 定规 | `countdown-scheduler.py` | `../countdown-scheduler.py` | ✅（P0 修复） |
+| 02 衡度 | `re-souo-ju-he` | `<SKILLS_DIR>/re-souo-ju-he/` | ✅ |
+| 02 衡度 | `anysearch` | `<SKILLS_DIR>/anysearch/` | ✅ |
+| 02 衡度 | `exa-search` | `<SKILLS_DIR>/exa-search/` | ✅ |
+| 02 衡度 | `web-content-extractor` | `<SKILLS_DIR>/web-content-extractor/` | ✅ |
 | 03 矩尺 | `gate-G3-check.py` | `./gate-G3-check.py` | ✅（P2 新增） |
-| 04 管城 | `bao-kuai-xie-zuo` | `/var/minis/skills/bao-kuai-xie-zuo/` | ✅ |
-| 04 管城 | `train-check.py` | `/var/minis/shared/train-check.py` | ✅ |
-| 05 权衡 | `humanizer-check.py` | `/var/minis/shared/humanizer-check/` | ✅（P0 修复） |
-| 06 法度 | `wx-toolkit` | `/var/minis/shared/wx-toolkit/` | ✅ |
+| 04 管城 | `bao-kuai-xie-zuo` | `<SKILLS_DIR>/bao-kuai-xie-zuo/` | ✅ |
+| 04 管城 | `train-check.py` | `../train-check.py` | ✅ |
+| 05 权衡 | `humanizer-check.py` | `../humanizer-check/` | ✅（P0 修复） |
+| 06 法度 | `wx-toolkit` | `../wx-toolkit/` | ✅ |
 | 06 法度 | `gate-H11/H12/H15` | `./gate-H*.py` | ✅ |
-| 07 维缆 | `gongzhonghao-publish` | `/var/minis/skills/gongzhonghao-publish/` | ✅ |
+| 07 维缆 | `gongzhonghao-publish` | `<SKILLS_DIR>/gongzhonghao-publish/` | ✅ |
 | 07 维缆 | `gate-G7-check.py` | `./gate-G7-check.py` | ✅（P1 新增） |
 | 09 明镜 | `ai-detection-signals.md` | `./docs/roles/references/` | ✅（P0 新增） |
-| 10 丹青 | `hai-bao-she-ji` | `/var/minis/skills/hai-bao-she-ji/` | ✅ |
-| 10 丹青 | `gzh-cover-gen` | `/var/minis/skills/gzh-cover-gen/` | ✅ |
-| 10 丹青 | `gzh-brand.py` | `/var/minis/shared/gzh-brand.py` | ✅ |
-| 10 丹青 | `watermarks-remover` | `/var/minis/skills/watermarks-remover/` | ✅ |
+| 10 丹青 | `hai-bao-she-ji` | `<SKILLS_DIR>/hai-bao-she-ji/` | ✅ |
+| 10 丹青 | `gzh-cover-gen` | `<SKILLS_DIR>/gzh-cover-gen/` | ✅ |
+| 10 丹青 | `gzh-brand.py` | `../gzh-brand.py` | ✅ |
+| 10 丹青 | `watermarks-remover` | `<SKILLS_DIR>/watermarks-remover/` | ✅ |
 
 **工具链评分**：19 个工具引用，19 个有效，**0 个失效**（P0 修复前为 6 个失效）。
 

@@ -11,7 +11,7 @@
 | 模型 | deepseek-v4-flash（sensenova）|
 | 输出 tokens | 1240 |
 | **实际正文字数** | **909 中文字（要求 1500–2500）** |
-| 稿件留存 | `/var/minis/workspace/draft-writer.md` |
+| 稿件留存 | `workspace/draft-writer.md` |
 
 ## 2. 约束遵守矩阵（8 条）
 

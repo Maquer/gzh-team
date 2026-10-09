@@ -48,12 +48,12 @@
 
 | 文件 | 用途 |
 |------|------|
-| `/var/minis/shared/remind-action.py` | 主脚本：submit/approve/reject/list/run/status/sync-from-worker |
-| `/var/minis/shared/worker-daily-cron.js` | Worker：health/tasks/dryrun/test + remind/approve/reject/decisions/delete-decisions |
-| `/var/minis/shared/gzh-team/docs/reminders/pending.md` | 待审批队列 |
-| `/var/minis/shared/gzh-team/docs/reminders/active.md` | 已审批队列 |
-| `/var/minis/shared/gzh-team/docs/reminders/done.md` | 已完成队列 |
-| `/var/minis/shared/.scheduler/countdown-tasks.json` | 调度器状态 |
+| `../remind-action.py` | 主脚本：submit/approve/reject/list/run/status/sync-from-worker |
+| `../worker-daily-cron.js` | Worker：health/tasks/dryrun/test + remind/approve/reject/decisions/delete-decisions |
+| `docs/reminders/pending.md` | 待审批队列 |
+| `docs/reminders/active.md` | 已审批队列 |
+| `docs/reminders/done.md` | 已完成队列 |
+| `../.scheduler/countdown-tasks.json` | 调度器状态 |
 
 ---
 
@@ -62,13 +62,13 @@
 ### 常规流程（Minis 存活）
 ```bash
 # 提交提案
-python3 /var/minis/shared/remind-action.py submit "复查上周三篇稿子的读者反馈数据" --role 01-lead
+python3 ../remind-action.py submit "复查上周三篇稿子的读者反馈数据" --role 01-lead
 
 # 审批（手动）
-python3 /var/minis/shared/remind-action.py approve REM-20260923-XX
+python3 ../remind-action.py approve REM-20260923-XX
 
 # 驳回
-python3 /var/minis/shared/remind-action.py reject REM-20260923-XX --reason "理由"
+python3 ../remind-action.py reject REM-20260923-XX --reason "理由"
 ```
 
 ### Minis 被杀后台后的恢复流程
@@ -77,10 +77,10 @@ python3 /var/minis/shared/remind-action.py reject REM-20260923-XX --reason "理�
 # 2. Worker 记录决定到 KV
 
 # 3. Minis 恢复后，运行同步
-python3 /var/minis/shared/remind-action.py sync-from-worker
+python3 ../remind-action.py sync-from-worker
 
 # 4. 验证状态
-python3 /var/minis/shared/remind-action.py status
+python3 ../remind-action.py status
 ```
 
 ---

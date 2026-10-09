@@ -30,4 +30,4 @@
 
 ## 撤销审计（30 天）
 
-- REM-20260922-01 · 07-publish → 01-lead 审批通过 → 注册调度器 ID `67f9e85c` → **01:48 撤销**（用户决策：仅作演示，不让其真触发）。撤销命令：`python3 /var/minis/shared/countdown-scheduler.py remove --id 67f9e85c`。调度器恢复到干净 6 任务状态。
+- REM-20260922-01 · 07-publish → 01-lead 审批通过 → 注册调度器 ID `67f9e85c` → **01:48 撤销**（用户决策：仅作演示，不让其真触发）。撤销命令：`python3 ../countdown-scheduler.py remove --id 67f9e85c`。调度器恢复到干净 6 任务状态。

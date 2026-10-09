@@ -1,7 +1,7 @@
 """
-recover.py：从Git历史恢复丢失文件
-用法：python3 recover.py <filepath> [--commit <sha>]
-关键约束：需指定目标文件，依赖Git历史
+recover.py：由拆分产物反向重建冻结源 TEAM.md.bak-pre-split
+用法：python3 recover.py
+关键约束：依赖 split.py 的 MAP 与 docs/ 下拆分产物；产物布局与冻结源不符时不写出（exit 1）
 """
 import io
 import sys
@@ -38,7 +38,7 @@ for a,b,p in M:
     L+=F[p][cur:cur+n];O[p]=cur+n+(1 if li<len(segs)-1 else 0)
     if li==len(segs)-1: L+=['']*G[p]
 if len(L)!=1019:
-    print('recover.py: 重建得到 %d 行，与冻结源布局（1019 行）不符；docs/ 已被改动或为脱敏版，未写出备份。'%len(L),file=sys.stderr)
+    print('recover.py: 重建得到 %d 行，与冻结源布局（1019 行）不符；docs/ 已被改动，未写出备份。'%len(L),file=sys.stderr)
     sys.exit(1)
 if L and L[-1]=='' and len(L)>1: pass  # 已有尾部空行
 elif not L or L[-1]!='':

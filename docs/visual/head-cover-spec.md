@@ -121,7 +121,7 @@
 ## 9. 生产工具（v1.1）
 
 ```bash
-cd /var/minis/shared/gzh-team
+cd gzh-team
 python3 head-tail-card.py --title "标题" --sub "副标题" --date 2026.09
 # 输出 assets/out/首图-<标题前12字>.png + 尾图-关注型.png
 # --only head|tail 单独出图；--next "下篇标题" 加预告行；--no-seal 去印章

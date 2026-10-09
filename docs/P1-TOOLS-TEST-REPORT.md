@@ -57,7 +57,7 @@
 **修复：** 加可选位置参数 `<tool.py>`，输出格式：
 ```
 === 三层覆盖分析：gate-check ===
-文件：/var/minis/shared/gzh-team/gate-check.py  （188 行）
+文件：gate-check.py  （188 行）
 
 Layer 1 元数据： ❌
   - docstring: ❌ (6行)
@@ -180,7 +180,7 @@ EXIT: 0
 **测试用例 2：** `checklist <tool.py>`（文件分析）
 ```
 === 三层覆盖分析：gate-check ===
-文件：/var/minis/shared/gzh-team/gate-check.py  （188 行）
+文件：gate-check.py  （188 行）
 
 Layer 1 元数据： ❌
   - docstring: ❌ (6行)
@@ -246,7 +246,7 @@ Layer 3 约束： ✅
 
 **validate 合法：**
 ```
-OK: /var/minis/shared/gzh-team/outputs/test-article/article.md
+OK: outputs/test-article/article.md
 exit: 0
 ```
 
@@ -358,17 +358,17 @@ exit: 0
 
 **文件路径：**
 ```
-/var/minis/shared/gzh-team/gate-check.py      (修复: argparse + --verbose)
-/var/minis/shared/gzh-team/persona-layers.py  (修复: --topic)
-/var/minis/shared/manifest.py                  (无改动)
-/var/minis/shared/output_paths.py              (无改动)
-/var/minis/shared/assertion-check.py           (无改动)
-/var/minis/shared/gzh-team/turn-reminders.py   (无改动)
-/var/minis/shared/skill-layers.py              (修复: checklist <tool>)
+gate-check.py      (修复: argparse + --verbose)
+persona-layers.py  (修复: --topic)
+../manifest.py                  (无改动)
+../output_paths.py              (无改动)
+../assertion-check.py           (无改动)
+turn-reminders.py   (无改动)
+../skill-layers.py              (修复: checklist <tool>)
 ```
 
 ---
 
-> 测试文章：[article.md](minis://shared/gzh-team/outputs/test-article/article.md)
+> 测试文章：[article.md](outputs/test-article/article.md)
 > 报告作者：gzh-team P1 测试流程
 > 更新时间：2026-10-03 19:30

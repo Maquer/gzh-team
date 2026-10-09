@@ -37,7 +37,7 @@
 | H11 | **生图门禁**（两轮实测 09-17）封面/配图含可读中文错字 | `apple-vision ocr <图> --lang zh-Hans,en **--level fast**` 抽检，命中中文字→退回重出。**⚠️ 必须用 fast 级**——accurate 级在低对比度纯色覆盖区域会产生 conf=0.30 中文误识别（实测"中貝新"在 1 色纯区），accurate 级 conf<0.5 结果需像素验证（`PIL crop + set(getdata())` 唯一色≤2→误识别） | 🟡 必改 |
 | H12 | **生图门禁**（两轮实测 09-17）元数据被画进图 | 图上是否出现 prompt 参数（如 `ultrawide 21:9`）或主体描述文字？prompt 末尾必须加 `no text, no watermark, no lettering`（实测 n=2 方向确定：加了不出现，没加出现） | 🟡 必改 |
 | H13 | **生图门禁**（两轮实测 09-17）AI 标识缺失 | **两通道都自带水印且不可关闭**（即梦左下角"AI生成"/sensenova 右上角"日日新+sensenova"）。保留水印→自动满足标识办法✅；去水印（纯色覆盖，覆盖区须大于 OCR bbox ≥40px）→发布必须开后台「AI 生成内容」声明开关。裁切 2.35:1 后即梦水印仍存活（y=0.922 在裁切范围内） | 🟡 必改 |
-| H14 | **AI 味门禁**（v2 实测 09-17） | `python3 /var/minis/shared/humanizer-check/humanizer-check.py < 正文.txt`。v2 用 lieflat 11 条实证规则（每条有 AI/Human 频率比），v1 的 8 处假阳性已全部推翻。**判定标准**：≤5 分放行 / 6-15 分重写≥50% / >25 推倒重写。**白名单式**：只改命中处，未命中逐字保留，不润色不调结构。**双模式**（09-18 起）：`train-check.py` 默认 `--mode solo`（单人模式，H14 只给参考分数，不卡关产出）；审核岗独立评审与发布前检查用 `--mode strict`（三档硬判定）。 | 🟡 必改 |
+| H14 | **AI 味门禁**（v2 实测 09-17） | `python3 ../humanizer-check/humanizer-check.py < 正文.txt`。v2 用 lieflat 11 条实证规则（每条有 AI/Human 频率比），v1 的 8 处假阳性已全部推翻。**判定标准**：≤5 分放行 / 6-15 分重写≥50% / >25 推倒重写。**白名单式**：只改命中处，未命中逐字保留，不润色不调结构。**双模式**（09-18 起）：`train-check.py` 默认 `--mode solo`（单人模式，H14 只给参考分数，不卡关产出）；审核岗独立评审与发布前检查用 `--mode strict`（三档硬判定）。 | 🟡 必改 |
 
 > H8–H10 不是平台条款，是团队内部门禁，来自两轮实测：这三项**无法通过自诉约束解决**，必须脚本判定。
 > H11–H13 来自 09-17 两轮即梦+sensenova 双通道实测，覆盖排版岗生图职责。约束从 3 条扩到 5 条（第二轮新增：水印去除覆盖区≥40px / accurate OCR 纯色误识别需 fast 级）。
@@ -81,7 +81,7 @@
 | 项 | 内容 |
 |---|---|
 | 工具 | `yuwen-publish-precheck` 的 `scripts/scan.py` |
-| 命令 | `cd /var/minis/skills/yuwen-publish-precheck && python3 scripts/scan.py --file <稿件> --commercial --json` |
+| 命令 | `cd <SKILLS_DIR>/yuwen-publish-precheck && python3 scripts/scan.py --file <稿件> --commercial --json` |
 | 覆盖条款 | 绝对化用语（R01）/ 收益保证（R03 critical）/ 敏感词 / 违禁词 / 辟谣提示 |
 | **不覆盖** | AI 标识（H1）/ AI 味 / 语义判断 / 洗稿（R3）/ 导流（R6）→ 需人工或 LLM |
 | 输出 | JSON：`candidates[]` 含 `match` / `line` / `start` / `end` / `context` / `rule` / `severity` / `doc` |
@@ -100,7 +100,7 @@
 §2 的 H8 / H9 不采信模型自报，用 `gate-check.py` 实测：
 
 ```
-python3 /var/minis/shared/gzh-team/gate-check.py <稿件.md>
+python3 gate-check.py <稿件.md>
 ```
 
 输出：正文字数 / 段落数 / 超 3 句段落明细 / 禁用词命中 / 元话语命中 / 标题策略数 / AI 参与标注 → 末行给 `PASS` 或 `FAIL: H8 / H9 ...`。

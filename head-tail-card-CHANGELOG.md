@@ -16,7 +16,7 @@
 ## 用法
 
 ```bash
-cd /var/minis/shared/gzh-team
+cd gzh-team
 
 # 生成首图 + 尾图
 python3 head-tail-card.py --title "标题" --sub "副标题" --date 2026.09.28

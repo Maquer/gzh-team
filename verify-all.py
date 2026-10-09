@@ -12,10 +12,10 @@ import re
 import subprocess
 import sys
 
-# 冻结源（与 split.py 的 SRC 一致）。开源脱敏版不附带，缺失时直接提示退出。
+# 冻结源（与 split.py 的 SRC 一致）。仓库不附带，缺失时直接提示退出。
 SRC = 'TEAM.md.bak-pre-split'
 if not os.path.exists(SRC):
-    print('verify-all.py: 未找到冻结源 %s（开源版不附带），无法做拆分一致性验证。' % SRC, file=sys.stderr)
+    print('verify-all.py: 未找到冻结源 %s（仓库不附带），无法做拆分一致性验证。' % SRC, file=sys.stderr)
     sys.exit(2)
 
 

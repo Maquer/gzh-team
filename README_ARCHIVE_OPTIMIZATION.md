@@ -15,61 +15,49 @@
 ## 目录结构
 
 ```
-/var/minis/shared/gzh-team/
-├── archives-rules.md                    # 归档不装优化体系
-├── archives_optimizer.py                # 归档不装优化主脚本
-├── archive_note_generator.py            # 归档笔记精简生成器
-├── optimization_results.json            # 优化结果
-├── decision_log.json                    # 决策日志
-├── active_tools.json                    # 活跃工具列表
-├── prioritized_tools.yaml               # 优先级工具
-├── archive_notes/                        # 归档笔记
-│   ├── archive_note_tool1.md
-│   ├── archive_note_tool2.md
-│   └── ...
-├── archive_generation_report.md         # 生成报告
-└── README_ARCHIVE_OPTIMIZATION.md       # 本文件
+gzh-team/
+├── archives-rules.md                 # 归档不装优化体系规则
+├── archives_optimizer.py             # 优化主脚本：分类 → 环境检查 → P0/P1/P2 决策 → 写笔记
+├── archive_note_generator.py         # 按 decision_log.json 批量生成归档笔记
+├── active_tools.json                 # 输入：待处理工具（name / priority / domain / status）
+├── domain_classifications.json       # 输入：工具 → 领域/优先级（缺失时自动写入默认值）
+├── redundancy_mapping.json           # 输入：领域内重合关系（值以 archive 开头即强制归档）
+├── decision_log.json                 # 输出：决策日志（追加写入）
+├── optimization_results.json         # 输出：本次决策结果
+├── optimization_report.md            # 输出：决策统计报告
+├── archive_note_<工具名>.md          # 输出：优化器生成的归档笔记
+├── archive_notes/                    # 输出：笔记生成器生成的归档笔记
+├── archive_generation_report.md      # 输出：笔记生成汇总
+└── README_ARCHIVE_OPTIMIZATION.md    # 本文件
 ```
 
 ## 快速开始
 
-### 1. 安装依赖
+### 1. 环境
 
-```bash
-# 确保在 /var/minis/shared/gzh-team 目录下
-cd /var/minis/shared/gzh-team
-
-# 创建虚拟环境（可选）
-python3 -m venv venv
-source venv/bin/activate
-
-# 安装依赖
-pip install -r requirements.txt
-```
+只用 Python 3 标准库，无额外依赖。在仓库根目录执行即可（脚本会自动以自身所在目录为工作目录）。
 
 ### 2. 运行优化流程
 
 ```bash
-# 运行归档不装优化器
+# 运行归档不装优化器（默认读取 active_tools.json，结果写在仓库根目录）
 python3 archives_optimizer.py
 
-# 生成精简归档笔记
+# 指定工具列表文件和输出目录
+python3 archives_optimizer.py --tools my_tools.json --output out/
+
+# 按决策日志生成精简归档笔记（输出到 archive_notes/）
 python3 archive_note_generator.py
+python3 archive_note_generator.py --tools my_tools.json
 ```
 
 ### 3. 查看结果
 
 ```bash
-# 查看优化结果
-cat optimization_results.json
-
-# 查看决策日志
-cat decision_log.json
-
-# 查看归档笔记
+cat optimization_results.json      # 优化结果
+cat optimization_report.md         # 决策统计
+cat decision_log.json              # 决策日志
 cat archive_notes/archive_note_*.md
-
-# 查看生成报告
 cat archive_generation_report.md
 ```
 
@@ -77,9 +65,10 @@ cat archive_generation_report.md
 
 ### 决策流程
 
-1. **领域分类**：根据工具名称确定所属领域
-2. **环境可行性检查**：检查工具在当前环境是否可用
-3. **P0-P1-P2 三级决策**：
+1. **领域分类**：先查 `domain_classifications.json`，查不到再用 `active_tools.json` 里的 domain/priority；都没有则跳过
+2. **领域重合检查**：`redundancy_mapping.json` 中该工具在本领域标记为 archive → 直接归档
+3. **环境可行性检查**：`active_tools.json` 中 status 为 ARCHIVE / ARCHIVED 视为不可用，其余视为可用
+4. **P0-P1-P2 三级决策**：
    - **P0 级**：环境可用则强制执行，否则归档
    - **P1 级**：环境可用则部分执行，否则归档
    - **P2 级**：直接归档

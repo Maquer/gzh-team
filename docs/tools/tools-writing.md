@@ -11,8 +11,8 @@ source_lines: "758-778"
 | 工具 | 类型 | 状态 | 路径/入口 | 用法 |
 |------|------|------|-----------|------|
 | `bao-kuai-xie-zuo` | Skill | 🔶 | `skills/bao-kuai-xie-zuo/SKILL.md` | 触发词"写文章/写一篇"。11 洞见维度 + 5 标题策略 + 配图 prompt + 叙事动量自检。产出 Markdown 含备选标题 5 个 + 配图指导 + 互动钩子 |
-| `humanizer-check.py` | 脚本 | 🔶 | `/var/minis/shared/humanizer-check/humanizer-check.py` | `python3 humanizer-check.py < 文章.txt`。11 条实证规则（v2，见 REVIEW H14）。≤5 分可发布，6-15 重写 ≥50% 段落，>25 推倒重写 |
-| `humanizer-check/checklist.md` | 清单 | — | `/var/minis/shared/humanizer-check/checklist.md` | 去 AI 味人工清单，配合脚本使用 |
+| `humanizer-check.py` | 脚本 | 🔶 | `../humanizer-check/humanizer-check.py` | `python3 humanizer-check.py < 文章.txt`。11 条实证规则（v2，见 REVIEW H14）。≤5 分可发布，6-15 重写 ≥50% 段落，>25 推倒重写 |
+| `humanizer-check/checklist.md` | 清单 | — | `../humanizer-check/checklist.md` | 去 AI 味人工清单，配合脚本使用 |
 
 **主笔交付前必做**：写完稿 → 跑 `humanizer-check.py` → 评分 ≤5 才进审核；>5 必须改写。
 

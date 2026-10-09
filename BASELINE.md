@@ -28,14 +28,14 @@ minis-cli gzh list       # 产物↔脚本对应表
 minis-cli gzh cover "标题"
 
 # 直接调脚本
-cd /var/minis/shared/gzh-team
+cd gzh-team
 python3 brand-font-schemes.py
 python3 cover-card.py --title "实测3款本地部署模型"
 ```
 
 重跑后 md5 必须与上表一致；不一致说明字体、参数或依赖被动过。
 
-附件副本（`/var/minis/attachments/` 同名 5 张）需与源同步，md5 一致。
+附件副本（`attachments/` 同名 5 张）需与源同步，md5 一致。
 
 ## 品牌常量（唯一真源：两个脚本内定义，勿在别处复制）
 

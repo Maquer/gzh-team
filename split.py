@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 split.py：TEAM.md拆分工具（按角色拆分为独立文件）
-用法：python3 split.py [--verify]
-关键约束：sha256验证完整性，不覆盖已有文件
+用法：python3 split.py
+关键约束：从冻结源 TEAM.md.bak-pre-split 按 MAP 重新生成 docs/ 与 TEAM.md 索引；sha256 逐段校验；冻结源缺失时 exit 2
 """
 import hashlib
 import io
@@ -10,11 +10,11 @@ import json
 import os
 import sys
 
-# 冻结源：拆分前的完整 TEAM.md 备份。开源脱敏版不附带该文件，
-# 此时本脚本只做提示后退出，不会改动 docs/ 与 TEAM.md。
+# 冻结源：拆分前的完整 TEAM.md 备份。仓库不附带该文件，
+# 缺失时本脚本只做提示后退出，不会改动 docs/ 与 TEAM.md。
 BAK = 'TEAM.md.bak-pre-split'
 if not os.path.exists(BAK):
-    print('split.py: 未找到冻结源 %s（开源版不附带），跳过拆分。' % BAK, file=sys.stderr)
+    print('split.py: 未找到冻结源 %s（仓库不附带），跳过拆分。' % BAK, file=sys.stderr)
     sys.exit(2)
 SRC = BAK
 IDX_OUT = 'TEAM.md'   # index output; MUST != SRC (writing to SRC destroys the source)

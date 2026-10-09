@@ -21,4 +21,4 @@
 
 <!-- 无 -->
 
-minis_url: minis://shared/gzh-team/docs/reminders/pending.md
+minis_url: docs/reminders/pending.md

@@ -14,7 +14,7 @@ import sys
 
 SRC = 'TEAM.md.bak-pre-split'
 if not os.path.exists(SRC):
-    print('link-check.py: 未找到冻结源 %s（开源版不附带），跳过审计。' % SRC, file=sys.stderr)
+    print('link-check.py: 未找到冻结源 %s（仓库不附带），跳过审计。' % SRC, file=sys.stderr)
     sys.exit(2)
 O = io.open(SRC, encoding='utf-8').read().split('\n')
 N = len(O)

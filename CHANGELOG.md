@@ -6,7 +6,7 @@ source: "TEAM.md.bak-pre-split"
 source_lines: "601-737,894-949,975-997,998-1020"
 ---
 
-> 🔴 **项目已废弃（2026-09-29）**，以下为完整历史存档，不再新增条目。
+> 完整变更历史。最新条目在文末（§30 v3.1.0：全量脚本修复 + 文档更新）。
 
 
 <!-- §12 待补充：v2.2.2 之前的变更记录 -->
@@ -491,7 +491,7 @@ sensenova-6.8-flash-lite 下执行不了（两条"成功"输出都是 99.8% 原�
 3. 周报数字 > 自建台账：台账记 6 阅读，周报记 [N] 阅读（差额 = 09-17 首篇的 [N] 阅读长尾），归应以周报为准
 
 **修改文件**：
-- `docs/发布台账.md`：新增「官方创作者周报归档」章节，附周报截图（截图含账号名，v2.3.1 后脱敏删除）、勘误、联动规则
+- `docs/发布台账.md`：新增「官方创作者周报归档」章节，附周报截图（截图含账号名，开源发布时未收录）、勘误、联动规则
 - `docs/account-health-label.md`：§3 影响评估新增「周报通道路径 🟢 确认正常」行
 - `gzh-team-perspective/SKILL.md`：F4 失败记录补充 v2.5.2 实测修正
 
@@ -525,3 +525,32 @@ sensenova-6.8-flash-lite 下执行不了（两条"成功"输出都是 99.8% 原�
 - 版本号 v2.5.2 → v2.6.0（minor bump：新增推送素材 + SOP 更新）
 
 **版本门禁**：`python3 gate-version-check.py` ✅ 待同步 TEAM/README 后重跑
+
+## 30. v3.1.0 全量脚本修复 + 仓库文档更新（2026-10-10）
+
+**触发**：v3.0.0 开源整理时，大量 Python 脚本被误注释、函数头与函数体错位、import 丢失，pyflakes 报 149 处未定义名称，多数工具一运行就报错或什么都不做；仓库说明仍停在 v2.6.0「废弃状态」，引用了已不存在的文件。用户指令「修复所有错误并提交 GitHub」「所有修复都更新说明，重写仓库说明」。
+
+**变更内容**：
+1. **拆分一致性工具**（`split.py` / `recover.py` / `verify-all.py` / `link-check.py`）：取消误注释、补回 import 与变量；`link-check.py` 实为拆分结构审计（A1-A6），`verify-all.py` 实为拆分一致性验证（V1-V6），说明已更正。冻结源 `TEAM.md.bak-pre-split` 不在仓库内，缺失时统一提示并 exit 2，不再崩溃
+2. **门禁**：`gate-G3-check.py` 补 import；`gate-H11/H12-check.py` 补回 `check_ocr`（调用 `apple-vision ocr ... -q`）/ `check_ocr_dual` / `check_image`，H11 提示阈值与代码一致（0.6），accurate 通道去重；`gate-H15-check.py` 补回尺寸检查（高度 ≤800px 阻断，宽度非 900/1080 提示）与 OCR 违规词检查；`gate-G0/G8-check.py` 支持 `--help`，文件不存在 exit 2
+3. **封面与首尾图**：`cover_styles.py` 恢复 10 种风格 + 5 档调性映射（此前整体被注释，`cover-pipeline` / `cover-recommend` 一导入即报错）；`cover-pipeline.py` 补线性/径向渐变、OCR 双通道、标题区豁免，并修正 OCR 归一化坐标与标题区像素坐标混比的 bug，`--out` 默认改为当前目录 `cover-out.png`；`follow-cards.py` 补 `tw` / `wrap`；`brand-font-schemes.py` 补 `make_follow_cover`（文首关注横幅 1080×216）；`cover-card.py` 删除失效代码；`cover-new-style.py` 输出路径可传参
+4. **人设与提醒**：`persona.py`、`turn-reminders.py` 恢复整体被注释的代码；`persona.py` 角色卡改为 10 张（01-10），解析兼容「性别」字段、口头禅可选；`persona-layers.py` 补 `load_role` / `cmd_layers` / `cmd_show`，复用 `persona.py` 解析
+5. **归档工具**：`archives_optimizer.py` / `archive_note_generator.py` 补回加载、分类、领域重合判断、环境可行性、决策与笔记生成逻辑，`--tools` / `--output` 参数生效，笔记标题改为规范 Markdown
+6. **培训工具**：`training/gzh-dispatch.py` 组装的命令此前从未执行，现交给 `company-mode.py`（找不到时提示 exit 2）；`training/train-check.py` 选题考核补上「紧迫诱导词」项
+7. **`gzh-typeset.py`**：兼容层此前只有注释，现转发到 `../gzh-typeset/gzh-typeset.py`（可用 `GZH_TYPESET_IMPL` 指定）
+8. **路径**：所有脚本与文档中的环境专属绝对路径改为相对仓库目录；仓库外的共享工具默认在仓库上一级，可用环境变量 `GZH_SHARED_DIR` 指定
+9. **清理**：删除一次性内容清理脚本 `desensitize-v1.py` 与过时说明 `docs/README-v2.3.1.md`；清理未使用 import / 变量与无占位符 f-string；新增 `requirements.txt`（Pillow）
+10. **文档**：重写 `README.md`；更新 `PUBLISH-NOTES.md`、`README_ARCHIVE_OPTIMIZATION.md`、`docs/rules/gate-mapping.md`、`media/README.md`、`.gitignore`；`TEAM.md` 版本号同步
+
+**修改文件**：
+- 脚本（36 个）：`split.py` `recover.py` `verify-all.py` `link-check.py` `gate-G0/G3/G7/G8/H11/H12/H14/H15-check.py` `gate-check.py` `cover-pipeline.py` `cover_styles.py` `cover-card.py` `cover-dynamic.py` `cover-new-style.py` `cover-recommend.py` `cover-summary.py` `follow-cards.py` `brand-font-schemes.py` `component-registry.py` `gzh-brand.py` `gzh-typeset.py` `persona.py` `persona-layers.py` `turn-reminders.py` `archives_optimizer.py` `archive_note_generator.py` `training/*.py`
+- 文档：`README.md` `CHANGELOG.md` `PUBLISH-NOTES.md` `TEAM.md` `README_ARCHIVE_OPTIMIZATION.md` `docs/**/*.md`（路径更新）
+- 删除：`desensitize-v1.py` `docs/README-v2.3.1.md`
+
+**影响面**：
+- `pyflakes` 全仓 0 报错；全部脚本可正常启动，`--help` 不再崩溃
+- 依赖外部环境的工具（`apple-vision`、Noto CJK 字体、`humanizer-check`、`company-mode.py`）缺失时给出明确提示，而不是抛异常
+- 拆分一致性工具需自备冻结源 `TEAM.md.bak-pre-split` 才能跑完整校验
+- 版本号 v2.6.0 → v3.1.0（承接仓库发布版本 v3.0.0）
+
+**版本门禁**：`python3 gate-version-check.py` ✅

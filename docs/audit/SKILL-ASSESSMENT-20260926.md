@@ -156,7 +156,7 @@ complements:
 
 | 维度 | 结论 |
 |------|------|
-| ✅ 强项 | ① **全队唯一四条工具链全部实测可用**的岗位——4 个 skill 全部存在于 `/var/minis/skills/`，无任何失效引用。② 置信度 A/B/C/D 分级 + "D 类不可引用"是硬规则，比多数团队的"标注来源"高一档。③ 反例强制 ≥1 条 + 找不到必须写检索路径，是防偏稿的结构性设计。 |
+| ✅ 强项 | ① **全队唯一四条工具链全部实测可用**的岗位——4 个 skill 全部存在于 `<SKILLS_DIR>/`，无任何失效引用。② 置信度 A/B/C/D 分级 + "D 类不可引用"是硬规则，比多数团队的"标注来源"高一档。③ 反例强制 ≥1 条 + 找不到必须写检索路径，是防偏稿的结构性设计。 |
 | ❌ 缺口 | ① **零实测基线**——`training/baselines/` 里"02 选题规划师"那次是 n=1 且只判通用规则（元话语/禁用词/紧迫诱导词/占位符 4 项），**必交付字段完整性完全未判**。也就是说 8 条素材 / 3 条 A·B 级 / 每个数字有来源这三条量化门槛**从未被脚本验证过一次**。② **没有一条出站契约**（只有 `09→02` 入站）。素材包是全队的输入源，交付给谁、什么格式、什么时机，全部空白。③ "素材库可检索、可复用"没有工具——已接入的 `second-brain` / Obsidian MCP 无人引用，素材库目前靠手建目录。 |
 | 🛠 工具熟练度 | **B** — 工具链完整可用（B 档），无实测基线。注意：这是"工具最好、验证最少"的组合，风险比"工具差"更高——因为没人知道它输出了什么。 |
 | 🤝 契约执行 | 出 0 / 入 1（#7 实拍图进素材包，P1 待修）。**全队唯一零出站契约的岗位**。 |
@@ -261,7 +261,7 @@ complements:
 6. 承接 H11 预检（对 10 交付的成品图做二次 OCR 抽检）
 7. **维护模板库**（沉淀可复用版式模板）
 
-**工具链**：`minis://shared/wx-toolkit/index.html`（实测存在）+ `gate-H11-check.py` + `gate-H12-check.py`
+**工具链**：`../wx-toolkit/index.html`（实测存在）+ `gate-H11-check.py` + `gate-H12-check.py`
 
 **产出物**：排版稿（8 字段：文件路径 / 品牌规范检查 / H11 OCR 自检 / AI 声明状态 / 截图验证 / 防盗链注入 / …），验收标准 4 条（截图无破损、真实粘贴触发 paste 事件、30 秒无卡顿、OCR 无中文错字）
 
@@ -448,7 +448,7 @@ complements:
 | ID | 角色卡引用 | 引用位置 | 真实可用的替代 | 说明 |
 |----|-----------|---------|---------------|------|
 | **TG-01** | `gzh-api-push.py` | 07-publish.md 工具链 + API 推送 4 步 | `gzh-api-tui-song` skill（存在，含 tests）+ `gzh-chuang-gao` skill | 全队发布通路唯一入口指向空文件 |
-| **TG-02** | `gzh-toolkit`（排版组件） | 07-publish.md 工具链 | `minis://shared/wx-toolkit/index.html`（存在，06 已在用）+ `gzh-pai-ban` skill | 与 06 的排版工具链名字不一致 |
+| **TG-02** | `gzh-toolkit`（排版组件） | 07-publish.md 工具链 | `../wx-toolkit/index.html`（存在，06 已在用）+ `gzh-pai-ban` skill | 与 06 的排版工具链名字不一致 |
 | **TG-03** | `humanizer-check.py` | 04-writer.md 第 8 步 | `gate-H14-check.py`（存在，gate-mapping 归属 05）+ `training/train-check.py`（存在，C1-C7 + H14） | 角色卡描述的"已升级 v2：lieflat 11 条实证规则"在代码里找不到对应文件 |
 | **TG-04** | `countdown-scheduler.py add` | 01-lead.md 工具链 + gate-mapping 提醒任务审批行 | `minis-scheduled` CLI（应用层可用） | 提醒任务审批通过后无法落地注册，审批链条断裂 |
 | **TG-05** | `references/ai-detection-signals.md` | 09-photo.md 工具链 | 无——需新建（内容 = 7 项正向 + 4 条 AI 高置信度信号） | 验真判定标准载体缺失 |
