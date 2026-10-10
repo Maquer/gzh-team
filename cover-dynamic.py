@@ -5,12 +5,8 @@
 import sys, re, os, math, datetime
 from PIL import Image, ImageDraw, ImageFont
 
-# 仓库根目录（原为 /var/minis/shared/gzh-team）与共享工具目录（仓库的上一级）
-GZH_TEAM = os.path.dirname(os.path.abspath(__file__))
-SHARED_DIR = os.environ.get('GZH_SHARED_DIR', os.path.dirname(GZH_TEAM))
-
 HEAD_W, HEAD_H = 900, 383
-OUT_DIR = os.path.join(GZH_TEAM, 'assets', 'out')
+OUT_DIR = '/var/minis/shared/gzh-team/assets/out'
 os.makedirs(OUT_DIR, exist_ok=True)
 
 RED    = (194, 69, 60)
@@ -191,7 +187,7 @@ def generate_cover(art_path, keyword=None, summaries=None,
     if date_str is None: date_str = datetime.datetime.now().strftime('%Y.%m')
 
     print(f'锚点关键词: {anchor_text}')
-    print('摘要行:')
+    print(f'摘要行:')
     for i, s in enumerate(use_summaries, 1):
         print(f'  {i}. {s}')
     print(f'副标题: {default_cn}')
@@ -219,7 +215,7 @@ def generate_cover(art_path, keyword=None, summaries=None,
     d.text((yeji_left, en_top), EN_BRAND, font=f_en, fill=GREY, anchor='lt')
 
     # 印章
-    seal_path = os.path.join(GZH_TEAM, 'assets', 'brand', 'seal-circle-84.png')
+    seal_path = '/var/minis/shared/gzh-team/assets/brand/seal-circle-84.png'
     sx, sy = HEAD_W - 56 - 84, 28
     if os.path.exists(seal_path):
         seal = Image.open(seal_path)
@@ -231,19 +227,30 @@ def generate_cover(art_path, keyword=None, summaries=None,
     fs = [20, 26, 32, 22]
     offs = [0, 12, 24, 36]
     y = 115
+    MAX_SUM_W = 400  # 摘要单行最大宽度，超长自动缩字，避免与右侧艺术字重叠
     for i, line in enumerate(use_summaries):
-        fnt = font_cjk('BOLD', fs[i])
         x = 56 + offs[i]
+        # 自适应字号：先按预定字号量宽，超限则缩小
+        scaled = None
+        size = fs[i]
+        while size >= 14:
+            fnt = font_cjk('BOLD', size)
+            tw = d.textbbox((0, 0), line, font=fnt)[2]
+            if (x + tw) <= x + MAX_SUM_W + 20:
+                scaled = size
+                break
+            size -= 2
+        fnt = font_cjk('BOLD', scaled if scaled else 14)
         d.text((x, y), line, font=fnt, fill=INK)
         tw = d.textbbox((0, 0), line, font=fnt)[2]
         if i == 0:
-            uy = y + fs[i] + 4
+            uy = y + size + 4
             d.rectangle([x, uy, x + tw, uy + 2], fill=RED)
-        y += fs[i] + 18
+        y += size + 18
 
     # 锚点大字 + 圆形装饰（OPT3）
-    ax = 500
-    f_anchor = font_cjk('SERIF', 76)
+    ax = 560
+    f_anchor = font_cjk('SERIF', 72 if len(anchor_text) >= 2 else 76)
     abbox = d.textbbox((0, 0), anchor_text, font=f_anchor)
     aw = abbox[2] - abbox[0]
     ah = abbox[3] - abbox[1]
@@ -284,7 +291,7 @@ def generate_cover(art_path, keyword=None, summaries=None,
 # ── 已知文章摘要缓存（自动提取质量不足时使用）────────────────
 # 格式：正文路径 → {'keyword': str, 'summaries': list[str], 'subtitle': (cn, en)}
 ARTICLE_CACHE = {
-    os.path.join(GZH_TEAM, '选题库', 'ai-agent-ecosystem-20261006', '正文.md'): {
+    '/var/minis/shared/gzh-team/选题库/ai-agent-ecosystem-20261006/正文.md': {
         'keyword': '技能层',
         'summaries': [
             '研究了90个AI Agent项目',
@@ -324,13 +331,7 @@ def parse_args():
     return args
 
 if __name__ == '__main__':
-    if len(sys.argv) > 1 and sys.argv[1] in ('-h', '--help'):
-        print(__doc__.strip())
-        sys.exit(0)
-    art_path = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith('--') else os.path.join(GZH_TEAM, '选题库', 'ai-interview-tdd-20261004', '正文.md')
-    if not os.path.isfile(art_path):
-        print(f'ERROR: 正文不存在 {art_path}', file=sys.stderr)
-        sys.exit(2)
+    art_path = sys.argv[1] if len(sys.argv) > 1 else '/var/minis/shared/gzh-team/选题库/ai-interview-tdd-20261004/正文.md'
     args = parse_args()
     generate_cover(art_path, keyword=args['keyword'], summaries=args['summaries'],
                    subtitle_cn=args['subtitle_cn'], subtitle_en=args['subtitle_en'],
