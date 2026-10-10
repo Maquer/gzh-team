@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""公众号封面图生成器（动态提取版 v1.9.0）
+"""公众号封面图生成器（动态提取版 v1.10.0）
+品牌标识/印章改用预制图片（缺失时自动回退字体渲染），字体分工见 docs/visual/
 用法：python3 cover-dynamic.py <正文.md路径> [--keyword X] [--summaries "a;b;c;d"] [--subtitle "中;en"] [--date YYYY.MM]
 """
 import sys, re, os, math, datetime
 from PIL import Image, ImageDraw, ImageFont
 
 HEAD_W, HEAD_H = 900, 383
-OUT_DIR = '/var/minis/shared/gzh-team/assets/out'
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BRAND_DIR = os.path.join(BASE_DIR, 'assets', 'brand')
+OUT_DIR = os.path.join(BASE_DIR, 'assets', 'out')
 os.makedirs(OUT_DIR, exist_ok=True)
 
 RED    = (194, 69, 60)
@@ -30,6 +33,7 @@ _FONT_CJK = {
     'BOLD':   '/usr/share/fonts/noto/NotoSansCJK-Bold.ttc',
     'NORMAL': '/usr/share/fonts/noto/NotoSansCJK-Regular.ttc',
     'SERIF':  '/usr/share/fonts/noto/NotoSerifCJK-Bold.ttc',
+    'MSZ':    '/usr/share/fonts/noto/MaShanZheng-Regular.ttf',
 }
 
 def _try_font(path, size):
@@ -199,14 +203,28 @@ def generate_cover(art_path, keyword=None, summaries=None,
     # 左侧红条
     d.rectangle([0, 0, 10, HEAD_H], fill=RED)
 
-    # Logo（红色，30px）
-    logo_chars = [('弎','LXGW'),('水','LXGW'),('野','MSZ'),('记','MSZ')]
-    logo = render_logo(logo_chars, 30)
-    lx, ly = 56, 32
-    img.paste(logo, (lx, ly), logo)
-    yeji_left = lx + getattr(logo, 'yeji_x', 0)
-    shui_right = lx + getattr(logo, 'shui_right', yeji_left)
-    shu_x0 = lx + getattr(logo, 'shu_x0', 0)
+    # Logo：优先贴品牌标识图（弎水=文楷 + 野记=毛笔 混排设计，字体无法复现）
+    # 该图未随开源仓库分发，缺失时自动回退逐字字体渲染
+    lx, ly = 58, 32
+    logo_img_path = os.path.join(BRAND_DIR, 'logo-mixed-transparent.png')
+    if os.path.exists(logo_img_path):
+        logo = Image.open(logo_img_path)
+        target_w = 130
+        target_h = int(round(target_w / logo.width * logo.height))
+        logo = logo.resize((target_w, target_h), Image.LANCZOS)
+        img.paste(logo, (lx, ly), logo)
+        # 锚点按母图 455 宽的实测字间隙换算（弎0-105 水113-226 野234-342 记350-455）
+        s = target_w / 455.0
+        shu_x0 = lx                    # 弎 左边缘 → 红线起点
+        shui_right = lx + 226 * s      # 水 右边缘 → 红线终点
+        yeji_left = lx + 234 * s       # 野 左边缘 → 英文起点
+    else:
+        logo_chars = [('弎','LXGW'),('水','LXGW'),('野','MSZ'),('记','MSZ')]
+        logo = render_logo(logo_chars, 30)
+        img.paste(logo, (lx, ly), logo)
+        yeji_left = lx + getattr(logo, 'yeji_x', 0)
+        shui_right = lx + getattr(logo, 'shui_right', yeji_left)
+        shu_x0 = lx + getattr(logo, 'shu_x0', 0)
     f_en = font_cjk('NORMAL', 14)
     en_top = ly + logo.height + 3
     bbox_en = d.textbbox((yeji_left, en_top), EN_BRAND, font=f_en, anchor='lt')
@@ -214,14 +232,22 @@ def generate_cover(art_path, keyword=None, summaries=None,
     d.rectangle([shu_x0, int(en_mid), shui_right, int(en_mid) + 1], fill=RED)
     d.text((yeji_left, en_top), EN_BRAND, font=f_en, fill=GREY, anchor='lt')
 
-    # 印章
-    seal_path = '/var/minis/shared/gzh-team/assets/brand/seal-circle-84.png'
+    # 印章：优先贴品牌印章图，缺失时回退动态绘制
+    # 注：旧 seal-circle-84.png 的「弎」字是方框（生成时字体缺字），勿再用
     sx, sy = HEAD_W - 56 - 84, 28
+    seal_path = os.path.join(BRAND_DIR, 'seal-uploaded-84.png')
     if os.path.exists(seal_path):
         seal = Image.open(seal_path)
         img.paste(seal, (sx, sy), seal)
     else:
-        d.rectangle([sx, sy, sx + 84, sy + 84], fill=RED)
+        side = 84
+        d.ellipse([sx, sy, sx + side, sy + side], outline=RED, width=3)
+        d.ellipse([sx + 6, sy + 6, sx + side - 6, sy + side - 6], outline=RED, width=1)
+        f_seal = font_cjk('SERIF', 24)   # 必须用含「弎」的字体，MaShanZheng 缺字
+        ccx, ccy = sx + side // 2, sy + side // 2
+        for ch, dx, dy in [('野', -20, -22), ('弎', 6, -22),
+                           ('记', -20, 4), ('水', 6, 4)]:
+            d.text((ccx + dx, ccy + dy), ch, font=f_seal, fill=RED)
 
     # 4行阶梯文字（OPT2）
     fs = [20, 26, 32, 22]
@@ -230,17 +256,17 @@ def generate_cover(art_path, keyword=None, summaries=None,
     MAX_SUM_W = 400  # 摘要单行最大宽度，超长自动缩字，避免与右侧艺术字重叠
     for i, line in enumerate(use_summaries):
         x = 56 + offs[i]
-        # 自适应字号：先按预定字号量宽，超限则缩小
+        # 自适应字号：内容区用文楷（信息承载层，可读性优先）
         scaled = None
         size = fs[i]
         while size >= 14:
-            fnt = font_cjk('BOLD', size)
+            fnt = font_lxgw(size)
             tw = d.textbbox((0, 0), line, font=fnt)[2]
             if (x + tw) <= x + MAX_SUM_W + 20:
                 scaled = size
                 break
             size -= 2
-        fnt = font_cjk('BOLD', scaled if scaled else 14)
+        fnt = font_lxgw(scaled if scaled else 14)
         d.text((x, y), line, font=fnt, fill=INK)
         tw = d.textbbox((0, 0), line, font=fnt)[2]
         if i == 0:
@@ -248,9 +274,11 @@ def generate_cover(art_path, keyword=None, summaries=None,
             d.rectangle([x, uy, x + tw, uy + 2], fill=RED)
         y += size + 18
 
-    # 锚点大字 + 圆形装饰（OPT3）
-    ax = 560
-    f_anchor = font_cjk('SERIF', 72 if len(anchor_text) >= 2 else 76)
+    # 锚点大字 + 圆形装饰（OPT3）：毛笔体做视觉锚点
+    # ax=580 让装饰组（圆环+点阵，半径 85）居中于右侧可用区；
+    # 左侧摘要最远约 x=466，此处留 ~100px 呼吸间距
+    ax = 580
+    f_anchor = font_cjk('MSZ', 72 if len(anchor_text) >= 2 else 76)
     abbox = d.textbbox((0, 0), anchor_text, font=f_anchor)
     aw = abbox[2] - abbox[0]
     ah = abbox[3] - abbox[1]

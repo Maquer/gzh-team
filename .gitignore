@@ -14,3 +14,11 @@ __pycache__/
 
 # 品牌配置
 # 使用前请把品牌占位符 <YOUR_BRAND> / <YOUR_BRAND_EN> 替换为你的账号信息（见 README「品牌配置」）
+
+# 生成的封面/尾图产物（可再生成，不入库）
+assets/out/
+
+# 品牌素材（含真实品牌名，开源脱敏不入库）
+# 脚本在素材缺失时自动回退字体渲染 / 动态绘制，不影响出图
+# 需要准备什么见 docs/visual/brand-assets.md
+assets/brand/
