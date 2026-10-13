@@ -598,3 +598,93 @@ LXGW；印章预制图 `seal-circle-84.png` 同样因生成时字体缺字，里
 - `ast.parse` 语法通过
 - 正常路径产物与人工确认封面 SHA-256 一致（`6a64b2365326836c`）
 - 素材缺失回退路径退出码 0，可出图
+
+## 32. v3.3.0：门禁系统四阶段优化（2026-10-13）
+
+**决策等级**：A 级（流程优化，涉及10+文件变更）
+
+**触发**：用户反馈「最近写出来的文章都是一个模板套用出来的」，诊断出门禁系统问题：
+
+1. **门禁过载**：54项检查分散4个模块（gate-check/train-check/verify-all/G7），脚本间重复检查4项
+2. **G8死代码**：gate-check.py中G8结构多样性检查代码位于sys.exit之后，从未执行
+3. **H14政策类误报**：humanizer-check的lieflat规则对政策类稿件硬性扣分（翻案腔/顿号罗列/冒号空转是官方列举）
+4. **反馈滞后**：主笔写完才检查，返工率高
+
+### 四阶段执行成果
+
+**阶段一：gate-check重构**（`b3e289b` + `a589b27`）
+
+| 改动 | 文件 | 效果 |
+|------|------|------|
+| 修复G8死代码 | gate-check.py | 前移到exit_code计算之前，正常WARN |
+| 合并train-check四项 | gate-check.py | 金句密度/紧迫诱导词/H14/H10 |
+| 新增--policy-mode | gate-check.py + humanizer-check.py | H14走政策类豁免，H14从18分→5分 |
+| 新增--no-humanizer | gate-check.py | 离线/快速模式跳过H14检测 |
+| 自检覆盖提升 | gate-check.py | 10/10 → 14/14项 |
+
+**阶段二：三层架构落地**（`8950657`）
+
+| 改动 | 文件 | 效果 |
+|------|------|------|
+| 架构总览文档 | docs/three-tier-architecture.md | 三层职责边界、检查矩阵、工作流程 |
+| REVIEW.md更新 | REVIEW.md | 标注已自动化项（🔧）、新增G8章节、版本v1.0→v2.0 |
+
+**阶段三：反馈前置**（`89d4930`）
+
+| 改动 | 文件 | 效果 |
+|------|------|------|
+| 写作中预检脚本 | gzh-precheck.py | 快速3项/完整含H14/骨架模式，<3秒 |
+| 结构模板库 | docs/templates/structure-templates-v1.0.md | 6种骨架+禁用句库+轮换规则 |
+| 分级放行机制 | docs/level-release-v1.0.md | L1全量/L2核心/L3基础 |
+
+**阶段四：可解释性评分**（`f2b400f` + `da7c3cc`）
+
+| 改动 | 文件 | 效果 |
+|------|------|------|
+| AI味详细解析 | gzh-h14-explain.py | 每条命中规则详情、改写建议、统计 |
+| 选题卡级别字段 | 选题卡.md | 添加稿件级别+结构类型字段 |
+| 选题⑤修复 | 选题⑤/正文.md | 修复G8禁用句式，2WARN→0WARN |
+
+### 效果对比
+
+| 维度 | 之前 | 之后 | 改进 |
+|------|------|------|------|
+| 门禁脚本数 | 2-3个 | 1个（gate-check.py）| -50% |
+| 检查覆盖 | 10/14项 | 14/14项 | +40% |
+| G8结构多样性 | 死代码 | 正常WARN | 激活 |
+| H14政策类 | 18分 | 5分（--policy-mode）| -72% |
+| 反馈时机 | 写完后 | 写作中（gzh-precheck）| 前置 |
+| 检查严格度 | 一刀切 | 分级放行（L1/L2/L3）| 灵活 |
+
+### 新增文件清单（6个）
+
+- `docs/three-tier-architecture.md` — 三层架构总览
+- `docs/templates/structure-templates-v1.0.md` — 6种骨架模板库
+- `docs/level-release-v1.0.md` — 分级放行机制
+- `docs/optimization-summary-20261013.md` — 执行总结
+- `gzh-precheck.py` — 写作中预检脚本
+- `gzh-h14-explain.py` — AI味可解释性评分
+
+### 修改文件清单（4个）
+
+- `gate-check.py`（266→384行）— 合并train-check + 修复G8 + 新增参数
+- `humanizer-check/humanizer-check.py` — 新增--policy-mode政策豁免
+- `REVIEW.md` — v1.0→v2.0，标注自动化项+G8章节
+- `选题库/liangban-ai-infrastructure-20261013/正文.md` — 修复G8禁用句式
+
+### 验证
+
+- ✅ gate-check.py语法通过，14/14项已跑
+- ✅ gzh-precheck.py语法通过，快速/完整/骨架模式测试通过
+- ✅ gzh-h14-explain.py语法通过，政策类解析+改写建议正常
+- ✅ humanizer-check.py --policy-mode正确传递豁免参数
+- ✅ 选题⑤：14/14全通过，0 BLOCK / 0 WARN
+
+### Git提交记录
+
+- `b3e289b` feat(gate-check): 阶段一重构
+- `a589b27` feat(humanizer-check): 新增--policy-mode
+- `8950657` docs: 阶段二 - 三层门禁架构落地
+- `89d4930` feat: 阶段三 - 反馈前置机制
+- `f2b400f` feat: 阶段四 - AI味可解释性评分
+- `da7c3cc` fix(选题⑤): 修复G8禁用句式
