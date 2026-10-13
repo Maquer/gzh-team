@@ -86,6 +86,24 @@ python3 gzh-precheck.py <稿件> --skeleton # 只查骨架
 
 ---
 
+### 阶段四：可解释性评分（2026-10-13）
+
+**提交**：`f2b400f`
+
+| 产出 | 路径 | 内容 |
+|------|------|------|
+| 可解释性评分 | gzh-h14-explain.py | AI味详细解析（规则命中+改写建议） |
+| 选题卡更新 | 选题库/.../选题卡.md | 添加稿件级别+结构类型字段 |
+
+**可解释性评分**：
+```bash
+python3 gzh-h14-explain.py <稿件>           # 详细报告
+python3 gzh-h14-explain.py <稿件> --policy  # 政策类豁免
+python3 gzh-h14-explain.py <稿件> --json    # JSON输出
+```
+
+---
+
 ## 三、效果对比
 
 | 指标 | 优化前 | 优化后 | 提升 |
