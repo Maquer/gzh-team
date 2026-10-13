@@ -1,38 +1,19 @@
 #!/usr/bin/env python3
+"""gzh-typeset.py：公众号排版工具（Markdown→微信 HTML）转发器。
+
+v4 垫片：本文件只是转发层，真正的排版实现在仓库外的 gzh-typeset 融合版。
+查找顺序：$GZH_TYPESET_IMPL → ../gzh-typeset/gzh-typeset.py。
+转发目标缺失时明确提示 + exit 2（不 traceback）。
+
+用法：python3 gzh-typeset.py <input.md> [output.html] [排版器原有参数...]
 """
-gzh-typeset.py：公众号排版工具（Markdown→微信HTML）
-用法：python3 gzh-typeset.py <input.md> [output.html]
-关键约束：需指定输入Markdown文件
-"""
-# gzh-typeset.py — 兼容 shim
-
-# 本文件是 shared/gzh-team/gzh-typeset.py 的旧路径兼容层。
-# 真正的实现已迁移到 shared/gzh-typeset/gzh-typeset.py（融合版 v2）。
-
-# 融合版相比团队版增加了：
-#   - 5 主题预设（authoritative/friendly/analytical/urgent/elegant）+ 关键词加权打分
-#   - 5 色荧光笔（yellow/green/blue/pink/purple）
-#   - 首尾模板（--template / --save-template）
-#   - --plain 纯文本输出
-#   - 密度门控（金句卡封顶，超量降级加粗）
-#   - **markdown 表格 → HTML <table>**（团队版直接把 `| --- |` 塞进 <p>，微信渲染为裸字符）
-#   - **H1 剥离时先剥 `（策略：XXX）` 尾部标记**
-#   - **`### 结尾/结束/小结` 特殊跳过**（不渲染标题行）
-#   - 默认输出名规则（-正文.md → -排版稿.html）
-
-# 用法完全兼容团队版：
-#   python3 gzh-typeset.py IN.md [--title "标题"] [--out OUT.html]
-
-# 新增参数（只有融合版支持）：
-#   --only-body / --tone / --max-pull / --hl / --highlight-color / --template / --save-template / --list-tones / --plain
-
-# 历史事故：2026-09-20 16:00 推送 AI 写作副业稿时，团队版排版稿的报价表还是 `| --- |` 裸 markdown，
-# 微信渲染为裸文字 → 用手工"修复版.html"临时绕过。本次融合后，表格自动转 HTML <table>，bug 根治。
-
-
 import os
 import subprocess
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from gzhkit import cli
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CANDIDATES = [
@@ -41,14 +22,34 @@ _CANDIDATES = [
 ]
 
 
-def main():
+def find_impl():
     for impl in _CANDIDATES:
-        if impl and os.path.isfile(impl) and os.path.abspath(impl) != os.path.abspath(__file__):
-            sys.exit(subprocess.call([sys.executable, impl] + sys.argv[1:]))
-    print('gzh-typeset.py: 未找到融合版实现（../gzh-typeset/gzh-typeset.py），'
-          '可用环境变量 GZH_TYPESET_IMPL 指定路径。', file=sys.stderr)
-    sys.exit(2)
+        if impl and os.path.isfile(impl) \
+                and os.path.abspath(impl) != os.path.abspath(__file__):
+            return impl
+    return None
+
+
+def main():
+    # --help 由转发层直接处理（契约：--help 退出 0）；其余参数原样转发
+    if any(a in ('-h', '--help') for a in sys.argv[1:]):
+        print('用法：python3 gzh-typeset.py <input.md> [output.html] [排版器参数...]')
+        print()
+        print('转发器：将参数原样转发给 gzh-typeset 融合版实现。')
+        print('实现查找顺序：$GZH_TYPESET_IMPL → ../gzh-typeset/gzh-typeset.py')
+        impl = find_impl()
+        print('当前实现：%s' % (impl if impl else '未找到（转发将 exit 2）'))
+        return 0
+    impl = find_impl()
+    if impl is None:
+        print('gzh-typeset.py: 未找到排版实现。', file=sys.stderr)
+        print('查找过：%s' % '；'.join(c for c in _CANDIDATES if c), file=sys.stderr)
+        print('可用环境变量 GZH_TYPESET_IMPL 指定 gzh-typeset 融合版路径。',
+              file=sys.stderr)
+        return 2
+    r = subprocess.run([sys.executable, impl] + sys.argv[1:])
+    return r.returncode
 
 
 if __name__ == '__main__':
-    main()
+    cli.run_main(main)

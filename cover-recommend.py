@@ -1,29 +1,47 @@
 #!/usr/bin/env python3
-"""
-cover-recommend.py：文章→调性打分→风格→可执行命令
+"""cover-recommend.py：文章→调性打分→风格→可执行命令。
+
+v4 垫片：CLI 参数与 v3.3.0 一致，风格表走 gzhkit.visual.styles，
+调性打分复用 gzh-typeset 融合版实现（importlib 加载，与 v3.3.0 同口径）。
 用法：生成封面前调用 --article 正文.md 推荐风格
 关键约束：需指定文章路径；--run 可直连出图，否则只输出命令
 """
-import argparse, datetime, importlib.util, os, re, subprocess, sys
+import argparse
+import datetime
+import importlib.util
+import os
+import re
+import subprocess
+import sys
 
-# 仓库根目录（原为 /var/minis/shared/gzh-team）与共享工具目录（仓库的上一级）
-GZH_TEAM = os.path.dirname(os.path.abspath(__file__))
-SHARED_DIR = os.environ.get('GZH_SHARED_DIR', os.path.dirname(GZH_TEAM))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from gzhkit.visual.styles import DESIGNER_STYLES, TONE_TO_STYLE
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-TYPESET = os.path.join(SHARED_DIR, 'gzh-typeset', 'gzh-typeset.py')
+TYPESET_CANDIDATES = [
+    os.environ.get('GZH_TYPESET_IMPL', ''),
+    os.path.join(HERE, '..', 'gzh-typeset', 'gzh-typeset.py'),
+]
 
-sys.path.insert(0, HERE)
-from cover_styles import DESIGNER_STYLES, TONE_TO_STYLE
+
+def find_typeset_impl():
+    for impl in TYPESET_CANDIDATES:
+        if impl and os.path.isfile(impl) \
+                and os.path.abspath(impl) != os.path.abspath(__file__):
+            return impl
+    return None
 
 
 def load_detect_tone():
-    if not os.path.exists(TYPESET):
-        print(f'FATAL: 排版器不存在 {TYPESET}', file=sys.stderr)
+    impl = find_typeset_impl()
+    if not impl:
+        print('FATAL: 排版器不存在（候选：%s；可用环境变量 GZH_TYPESET_IMPL 指定）'
+              % ' / '.join(c for c in TYPESET_CANDIDATES if c), file=sys.stderr)
         sys.exit(2)
-    spec = importlib.util.spec_from_file_location('_typeset', TYPESET)
+    spec = importlib.util.spec_from_file_location('_typeset', impl)
     mod = importlib.util.module_from_spec(spec)
-    # typeset 尾部有 argparse，导入时会执行；用 __name__!='__main__' 走不进 main，安全
+    # typeset 尾部有 argparse，但 __name__ != '__main__' 时走不进 main，导入安全
     spec.loader.exec_module(mod)
     return mod.detect_tone, mod.TONES
 
@@ -40,12 +58,10 @@ DATE_RE = re.compile(r'(20\d{2})[.\-/年]?\s?(\d{1,2})[.\-/月]?\s?(\d{1,2})?')
 def extract_title(md, fallback='未命名'):
     for m in H1_RE.finditer(md):
         t = STRATEGY_TAG_RE.sub('', m.group(1)).strip()
-        # 去掉尾部段名标记：「xxx · 正文」「xxx - 正文」「xxx｜正文」
         t = re.sub(r'\s*[·|｜\-—]\s*(正文|初稿|终稿|定稿)\s*$', '', t).strip()
         if t and not t.startswith('正文') and len(t) >= 4:
             if len(t) <= 28:
                 return t
-            # 超长优先在标点处断，避免切一半词
             head = t[:28]
             for sep in ('，', '。', '：', '、', '；', ' ', ','):
                 cut = head.rfind(sep)
@@ -57,19 +73,20 @@ def extract_title(md, fallback='未命名'):
 
 def extract_points(md, limit=4):
     pts, seen = [], set()
-    # 1. 粗体动作句：`1. **xxx**` 或 `**xxx**：`
     for m in re.finditer(r'^\s*\d+[\.、]\s*\*\*([^*]{4,20})\*\*', md, re.M):
         p = m.group(1).strip()
         if p not in seen:
-            seen.add(p); pts.append(p)
+            seen.add(p)
+            pts.append(p)
         if len(pts) >= limit:
             return pts
-    # 2. 退到 H3 小标题
     if len(pts) < 2:
         for m in re.finditer(r'^###\s+(.+?)\s*$', md, re.M):
             p = STRATEGY_TAG_RE.sub('', m.group(1)).strip()
-            if 4 <= len(p) <= 20 and p not in seen and '自检' not in p and '参考' not in p:
-                seen.add(p); pts.append(p)
+            if 4 <= len(p) <= 20 and p not in seen \
+                    and '自检' not in p and '参考' not in p:
+                seen.add(p)
+                pts.append(p)
             if len(pts) >= limit:
                 break
     return pts
@@ -79,14 +96,13 @@ def extract_date(md, path=''):
     for src in (os.path.basename(path), md[:400]):
         m = DATE_RE.search(src)
         if m:
-            y, mo = m.group(1), m.group(2)
-            return f'{y}.{int(mo):02d}'
+            return '%s.%02d' % (m.group(1), int(m.group(2)))
     now = datetime.date.today()
-    return f'{now.year}.{now.month:02d}'
+    return '%d.%02d' % (now.year, now.month)
 
 
 def main():
-    ap = argparse.ArgumentParser(description='封面调性推荐器')
+    ap = argparse.ArgumentParser(prog='cover-recommend.py', description='封面调性推荐器')
     ap.add_argument('--article', required=True, help='正文 .md 路径')
     ap.add_argument('--tone', choices=list(TONE_TO_STYLE.keys()),
                     help='锁定调性（跳过打分）')
@@ -102,25 +118,21 @@ def main():
     a = ap.parse_args()
 
     if not os.path.exists(a.article):
-        print(f'FATAL: 正文不存在 {a.article}', file=sys.stderr)
+        print('FATAL: 正文不存在 %s' % a.article, file=sys.stderr)
         return 2
-    md = open(a.article, encoding='utf-8').read()
+    with open(a.article, encoding='utf-8') as f:
+        md = f.read()
 
     # 1. 调性：锁定 > 打分
     if a.tone:
-        tone = a.tone
-        scores = None
+        tone, scores = a.tone, None
     else:
-        detect_tone, TONES = load_detect_tone()
+        detect_tone, _TONES = load_detect_tone()
         tone, scores = detect_tone(md)
 
     rec = TONE_TO_STYLE[tone]
     rank = rec['rank']
-
-    if a.style:
-        chosen = a.style if a.style in DESIGNER_STYLES else rank[0]
-    else:
-        chosen = rank[0]
+    chosen = a.style if a.style in DESIGNER_STYLES else rank[0]
 
     title = a.title or extract_title(md)
     points = a.points if a.points is not None else ','.join(extract_points(md))
@@ -128,7 +140,7 @@ def main():
     # 输出名：正文.md → 用父目录名（选题 id），避免全叫「正文-cover.png」互相覆盖
     base = os.path.splitext(os.path.basename(a.article))[0]
     slug = base if base != '正文' else os.path.basename(os.path.dirname(os.path.abspath(a.article)))
-    out = a.out or os.path.join(HERE, 'assets', f'{slug}-cover.png')
+    out = a.out or os.path.join(HERE, 'assets', '%s-cover.png' % slug)
 
     style = DESIGNER_STYLES[chosen]
 
@@ -137,24 +149,24 @@ def main():
         return 0
 
     # 2. 报告推荐理由
-    print(f'调性判定: {tone} ({rec["label"]})'
-          + ('  [手工锁定]' if a.tone else '  [打分]'))
+    print('调性判定: %s (%s)%s' % (tone, rec['label'],
+          '  [手工锁定]' if a.tone else '  [打分]'))
     if scores:
         top = scores[tone]
-        hits = top[1] if isinstance(top, tuple) else []
-        val = top[0] if isinstance(top, tuple) else top
-        print(f'  得分 {val}  命中 {" ".join(hits) if hits else "无（回退默认）"}')
-    print(f'推荐风格: {chosen} ({style["name"]} · {style["desc"]})')
-    print(f'备选:     {", ".join(rank[1:])}')
+        val, hits = (top[0], top[1]) if isinstance(top, tuple) else (top, [])
+        print('  得分 %s  命中 %s' % (val, ' '.join(hits) if hits else '无（回退默认）'))
+    print('推荐风格: %s (%s · %s)' % (chosen, style['name'], style['desc']))
+    print('备选:     %s' % ', '.join(rank[1:]))
 
     # 3. 调性主色对齐提示
-    accent_note = ''
     if not a.no_accent:
         p = rec['primary']
-        accent_note = (f'  (建议强调色对齐排版主色 #{p[0]:02X}{p[1]:02X}{p[2]:02X}'
-                       f'，当前风格用 #{style["accent"][0]:02X}{style["accent"][1]:02X}{style["accent"][2]:02X})')
-    print(f'提取: 标题「{title}」 要点 {len(points.split(",")) if points else 0} 项  日期 {date}')
-    print(f'配色: {accent_note}')
+        print('配色:   (建议强调色对齐排版主色 #%02X%02X%02X'
+              '，当前风格用 #%02X%02X%02X)'
+              % (p[0], p[1], p[2],
+                 style['accent'][0], style['accent'][1], style['accent'][2]))
+    print('提取: 标题「%s」 要点 %d 项  日期 %s'
+          % (title, len(points.split(',')) if points else 0, date))
 
     # 4. 拼命令
     cmd = ['python3', os.path.join(HERE, 'cover-pipeline.py'),
@@ -162,14 +174,13 @@ def main():
            '--title', title]
     if points:
         cmd += ['--points', points]
-    style_needs_date = style.get('badge_shape', 'none') != 'none'
-    if date and style_needs_date:
+    if date and style.get('badge_shape', 'none') != 'none':
         cmd += ['--date', date]
     cmd += ['--out', out]
 
     print('\n可直接执行:')
-    print('  ' + ' '.join(f'"{c}"' if ' ' in c or len(c) > 12 else c for c in cmd))
-    print(f'\n输出: {out}')
+    print('  ' + ' '.join('"%s"' % c if ' ' in c or len(c) > 12 else c for c in cmd))
+    print('\n输出: %s' % out)
 
     if a.run:
         print('\n[执行出图]')
@@ -178,4 +189,5 @@ def main():
     return 0
 
 
-sys.exit(main())
+if __name__ == '__main__':
+    sys.exit(main())

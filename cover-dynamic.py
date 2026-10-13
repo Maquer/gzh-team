@@ -1,363 +1,207 @@
 #!/usr/bin/env python3
-"""公众号封面图生成器（动态提取版 v1.10.0）
-品牌标识/印章改用预制图片（缺失时自动回退字体渲染），字体分工见 docs/visual/
-用法：python3 cover-dynamic.py <正文.md路径> [--keyword X] [--summaries "a;b;c;d"] [--subtitle "中;en"] [--date YYYY.MM]
-"""
-import sys, re, os, math, datetime
-from PIL import Image, ImageDraw, ImageFont
+"""cover-dynamic.py：公众号封面图生成器（动态提取版）。
 
-HEAD_W, HEAD_H = 900, 383
+v4 垫片：CLI 参数与 v3.3.0 一致，渲染逻辑走 gzhkit.visual.canvas。
+从正文 .md 自动提取锚点关键词 + 4 行摘要，也可用参数覆盖。
+品牌 logo/印章优先用 assets/brand 下预制图，缺失 → 字体渲染回退，
+退出码仍 0（v3.2.0 回退规则保留）。
+
+字体分工（v3.2.0，原样保留）：摘要区用文楷 LXGW（信息承载层，可读性优先）。
+用法：python3 cover-dynamic.py <正文.md> [--keyword X] [--summaries "a;b;c;d"]
+      [--subtitle "中;en"] [--date YYYY.MM]
+"""
+import datetime
+import math
+import os
+import re
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from gzhkit import cli, report
+from gzhkit.visual import canvas
+
+HEAD_W, HEAD_H = canvas.COVER_W, canvas.COVER_H
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 BRAND_DIR = os.path.join(BASE_DIR, 'assets', 'brand')
 OUT_DIR = os.path.join(BASE_DIR, 'assets', 'out')
-os.makedirs(OUT_DIR, exist_ok=True)
 
-RED    = (194, 69, 60)
-PAPER  = (245, 245, 245)
-INK    = (51, 51, 51)
-GREY   = (140, 140, 140)
-MID_GREY = (160, 160, 160)
-LIGHT_RED = (232, 196, 192)
-DOT_GREY = (232, 180, 176)
 
-BRAND = '<YOUR_BRAND>'
-EN_BRAND = 'SANSHUI YEJI'
-SLOGAN = '野路实测，笔记为证：留下能用的'
-
-# ── 字体（优先霞鹜，回退到 Noto CJK）─────────────────────────
-_FONT_ALT = [
-    '/usr/share/fonts/noto/LXGWWenKai-Regular.ttf',
-    '/usr/share/fonts/noto/MaShanZheng-Regular.ttf',
-]
-_FONT_CJK = {
-    'BOLD':   '/usr/share/fonts/noto/NotoSansCJK-Bold.ttc',
-    'NORMAL': '/usr/share/fonts/noto/NotoSansCJK-Regular.ttc',
-    'SERIF':  '/usr/share/fonts/noto/NotoSerifCJK-Bold.ttc',
-    'MSZ':    '/usr/share/fonts/noto/MaShanZheng-Regular.ttf',
-}
-
-def _try_font(path, size):
-    try:
-        return ImageFont.truetype(path, size)
-    except Exception:
-        return None
-
-def font_cjk(style, size):
-    """按 style(BOLD/NORMAL/SERIF) 返回字体，找不到时自动回退"""
-    p = _FONT_CJK[style]
-    f = _try_font(p, size)
-    if f: return f
-    # 回退：遍历备选
-    for alt in _FONT_ALT:
-        if os.path.exists(alt):
-            f = _try_font(alt, size)
-            if f: return f
-    return ImageFont.load_default()  # 最后手段
-
-def font_lxgw(size):
-    """LXGW 文楷（品牌用）"""
-    for p in _FONT_ALT:
-        if os.path.exists(p):
-            f = _try_font(p, size)
-            if f: return f
-    return font_cjk('NORMAL', size)
-
-# ── 动态提取 ──────────────────────────────────────────────────
+# ── 动态提取 ──────────────────────────────────────────────
 def extract_keyword(text):
-    quotes = re.findall(r'[\u201c\u201d\u300c\u300d](.+?)[\u201c\u201d\u300c\u300d]', text)
+    """锚点关键词：引号词（频次×长度打分）→ **加粗** → 标题前 4 字词 → 兜底。"""
+    quotes = re.findall(r'[“”「」](.+?)[“”「」]', text)
     if quotes:
         best, best_score = None, -1
-        for q in set(quotes):
-            qc = q.strip()
-            if not qc: continue
-            full_freq = text.count(qc)
-            score = full_freq * 10
-            L = len(re.findall(r'[\u4e00-\u9fff]', qc))
-            if 3 <= L <= 4: score += 15
-            if L <= 2: score -= 10
-            if L > 6: score -= 10
-            if qc in text.split('\n')[0]: score += 30
-            if score > best_score: best_score = score; best = qc
-        if best: return best
-    bolds = re.findall(r'\*\*([^*]{2,8})\*\*', text)
-    for b in bolds:
+        first_line = text.split('\n')[0]
+        for qc in {q.strip() for q in quotes}:
+            if not qc:
+                continue
+            score = text.count(qc) * 10
+            n_zh = len(re.findall(r'[一-鿿]', qc))
+            if 3 <= n_zh <= 4:
+                score += 15
+            if n_zh <= 2 or n_zh > 6:
+                score -= 10
+            if qc in first_line:
+                score += 30
+            if score > best_score:
+                best_score, best = score, qc
+        if best:
+            return best
+    for b in re.findall(r'\*\*([^*]{2,8})\*\*', text):
         bc = re.sub(r'[。、；：！？\-—]', '', b.strip())
-        if 3 <= len(re.findall(r'[\u4e00-\u9fff]', bc)) <= 4:
+        if 3 <= len(re.findall(r'[一-鿿]', bc)) <= 4:
             return bc
     title = text.split('\n')[0].lstrip('# ').strip()
-    words = re.findall(r'[\u4e00-\u9fff]{3,4}', title)
+    words = re.findall(r'[一-鿿]{3,4}', title)
     return words[0] if words else '核心观点'
 
+
 def extract_summaries(text):
+    """4 行摘要：标题改写 / 现象句 / 结论句 / 日期。"""
     lines = [l.strip() for l in text.split('\n') if l.strip()]
+
     def clean(s):
-        s = re.sub(r'["""\uff02\u300c\u300d\u201c\u201d]', '', s)
+        s = re.sub(r'[""\u02ba「」“”]', '', s)
         s = re.sub(r'[，。、；：！？]', '', s)
-        s = re.sub(r'\s+', '', s)
-        return s
+        return re.sub(r'\s+', '', s)
+
     title = lines[0].lstrip('# ').strip()
     s1 = re.sub(r'^(我[研究了|发现]|研究[了|过]|测试[了|过]).*?(发现|最|不是|才是)', '', title)
-    s1 = re.sub(r'[^a-zA-Z\u4e00-\u9fff]+', ' ', s1).strip()[:14]
-    body_lines = [l for l in lines[1:] if l and not l.startswith('#') and l != '---']
-    s2 = '现象描述'
-    for l in body_lines:
-        c = clean(l)
-        if 6 <= len(c) <= 14: s2 = c; break
+    s1 = re.sub(r'[^a-zA-Z一-鿿]+', ' ', s1).strip()[:14]
+    body = [l for l in lines[1:] if l and not l.startswith('#') and l != '---']
+    s2 = next((clean(l) for l in body if 6 <= len(clean(l)) <= 14), '现象描述')
     s3 = '核心观点'
-    for l in body_lines:
-        if any(k in l for k in ('结论', '最关键', '判断', '核心', '结论一', '结论二', '结论三')):
+    for l in body:
+        if any(k in l for k in ('结论', '最关键', '判断', '核心')):
             c = clean(l)
-            if 6 <= len(c) <= 14: s3 = c; break
+            if 6 <= len(c) <= 14:
+                s3 = c
+                break
     if s3 == '核心观点':
-        for l in reversed(body_lines):
+        for l in reversed(body):
             c = clean(l)
-            if 4 <= len(c) <= 14: s3 = c; break
+            if 4 <= len(c) <= 14:
+                s3 = c
+                break
     return [s1, s2[:14], s3[:14], datetime.datetime.now().strftime('%Y.%m')]
 
-# ── 品牌 Logo 渲染（复刻 cover-card.py 像素对齐逻辑）──────────
-def render_logo(logo_chars, size):
-    """logo_chars: list of (char, font_style) where font_style='LXGW'|'MSZ'|'N'"""
-    gap, pad, ss = 6, 20, 2
-    items = []
-    for ch, style in logo_chars:
-        if style == 'LXGW':
-            fb = font_lxgw(size * ss)
-        elif style == 'MSZ':
-            fb = font_lxgw(size * ss)  # 暂无 MaShanZheng fallback
-        else:
-            fb = font_cjk('NORMAL', size * ss)
-        cell = Image.new('RGBA', (size * 3 * ss, size * 3 * ss), (0, 0, 0, 0))
-        ImageDraw.Draw(cell).text((size * ss, size * ss), ch, font=fb, fill=RED)
-        bbox = cell.getbbox()
-        if bbox:
-            items.append((ch, cell.crop(bbox)))
-        else:
-            items.append((ch, cell))
-    H = size * 2 + 40
-    W = sum(round(g.width / ss) for _, g in items) + gap * (len(items) - 1) + pad * 2 + 2
-    big = Image.new('RGBA', (W * ss, H * ss), (0, 0, 0, 0))
-    cy = big.height / 2
-    span = {}
-    x = pad * ss
-    for ch, g in items:
-        px2 = int(x)
-        py2 = int(round(cy - g.height / 2))
-        big.paste(g, (px2, py2), g)
-        bx = big.getchannel('A').crop((px2, py2, px2 + g.width, py2 + g.height))
-        a0 = a1 = None
-        for k in range(bx.width):
-            if bx.crop((k, 0, k + 1, bx.height)).getextrema()[1] > 128:
-                if a0 is None: a0 = k
-                a1 = k
-        if a0 is not None:
-            span[ch] = ((px2 + a0) / ss, (px2 + a1) / ss)
-        x += g.width + gap * ss
-    sps = list(span.values())
-    if len(sps) >= 3:
-        shu_x0, shui_right, yeji_left = sps[0][0], sps[1][1], sps[2][0]
-    else:
-        shu_x0 = shui_right = yeji_left = None
-    im = big.resize((W, H), Image.LANCZOS)
-    bbox = im.getbbox()
-    if bbox:
-        im = im.crop(bbox)
-        if yeji_left is not None:
-            im.yeji_x = im.yeji_left = yeji_left - bbox[0]
-        if shui_right is not None:
-            im.shui_right = shui_right - bbox[0]
-        if shu_x0 is not None:
-            im.shu_x0 = shu_x0 - bbox[0]
-    return im
 
-# ── 主渲染 ────────────────────────────────────────────────────
+# ── 已知文章摘要缓存（自动提取质量不足时登记在此）────────
+# 格式：正文绝对路径 → {'keyword': str, 'summaries': [str×4],
+#                      'subtitle_cn': str, 'subtitle_en': str}
+ARTICLE_CACHE = {}
+
+
+def _get_cached_article(art_path):
+    return ARTICLE_CACHE.get(os.path.abspath(art_path))
+
+
+# ── 主渲染 ────────────────────────────────────────────────
 def generate_cover(art_path, keyword=None, summaries=None,
                    subtitle_cn=None, subtitle_en=None, date_str=None):
-    with open(art_path, 'r', encoding='utf-8') as f:
-        text = f.read()
-    # 优先从缓存获取
+    canvas.ensure_pillow()
+    text = cli.read_text(art_path)  # 读失败 → stderr + exit 2
+
     cached = _get_cached_article(os.path.abspath(art_path))
     if cached:
-        print(f'✅ 使用缓存摘要: {os.path.basename(art_path)}')
+        print('✅ 使用缓存摘要: %s' % os.path.basename(art_path))
         keyword = cached.get('keyword', keyword)
         summaries = summaries or cached.get('summaries')
         subtitle_cn = subtitle_cn or cached.get('subtitle_cn')
         subtitle_en = subtitle_en or cached.get('subtitle_en')
+
     anchor_text = keyword or extract_keyword(text)
     extracted = extract_summaries(text)
     use_summaries = summaries if summaries else extracted
     title = text.split('\n')[0].lstrip('# ').strip()
-    default_cn = f'当「{anchor_text}」开始' if not subtitle_cn else subtitle_cn
-    default_en = title.upper()[:30] if not subtitle_en else subtitle_en
-    if date_str is None: date_str = datetime.datetime.now().strftime('%Y.%m')
+    default_cn = subtitle_cn or ('当「%s」开始' % anchor_text)
+    default_en = subtitle_en or title.upper()[:30]
+    if date_str is None:
+        date_str = datetime.datetime.now().strftime('%Y.%m')
 
-    print(f'锚点关键词: {anchor_text}')
-    print(f'摘要行:')
+    print('锚点关键词: %s' % anchor_text)
+    print('摘要行:')
     for i, s in enumerate(use_summaries, 1):
-        print(f'  {i}. {s}')
-    print(f'副标题: {default_cn}')
-    print(f'英文: {default_en}')
+        print('  %d. %s' % (i, s))
+    print('副标题: %s' % default_cn)
+    print('英文: %s' % default_en)
 
-    img = Image.new('RGB', (HEAD_W, HEAD_H), PAPER)
-    d = ImageDraw.Draw(img)
+    img, d = canvas.new_canvas(HEAD_W, HEAD_H, canvas.PAPER)
 
     # 左侧红条
-    d.rectangle([0, 0, 10, HEAD_H], fill=RED)
+    d.rectangle([0, 0, 10, HEAD_H], fill=canvas.RED)
 
-    # Logo：优先贴品牌标识图（弎水=文楷 + 野记=毛笔 混排设计，字体无法复现）
-    # 该图未随开源仓库分发，缺失时自动回退逐字字体渲染
-    lx, ly = 58, 32
-    logo_img_path = os.path.join(BRAND_DIR, 'logo-mixed-transparent.png')
-    if os.path.exists(logo_img_path):
-        logo = Image.open(logo_img_path)
-        target_w = 130
-        target_h = int(round(target_w / logo.width * logo.height))
-        logo = logo.resize((target_w, target_h), Image.LANCZOS)
-        img.paste(logo, (lx, ly), logo)
-        # 锚点按母图 455 宽的实测字间隙换算（弎0-105 水113-226 野234-342 记350-455）
-        s = target_w / 455.0
-        shu_x0 = lx                    # 弎 左边缘 → 红线起点
-        shui_right = lx + 226 * s      # 水 右边缘 → 红线终点
-        yeji_left = lx + 234 * s       # 野 左边缘 → 英文起点
-    else:
-        logo_chars = [('弎','LXGW'),('水','LXGW'),('野','MSZ'),('记','MSZ')]
-        logo = render_logo(logo_chars, 30)
-        img.paste(logo, (lx, ly), logo)
-        yeji_left = lx + getattr(logo, 'yeji_x', 0)
-        shui_right = lx + getattr(logo, 'shui_right', yeji_left)
-        shu_x0 = lx + getattr(logo, 'shu_x0', 0)
-    f_en = font_cjk('NORMAL', 14)
-    en_top = ly + logo.height + 3
-    bbox_en = d.textbbox((yeji_left, en_top), EN_BRAND, font=f_en, anchor='lt')
-    en_mid = (bbox_en[1] + bbox_en[3]) / 2
-    d.rectangle([shu_x0, int(en_mid), shui_right, int(en_mid) + 1], fill=RED)
-    d.text((yeji_left, en_top), EN_BRAND, font=f_en, fill=GREY, anchor='lt')
+    # 品牌块：优先贴预制 logo 图，缺失 → 逐字字体渲染回退（exit 0）
+    canvas.draw_brand_block(img, d, brand_dir=BRAND_DIR, prefer_asset=True,
+                            lx=58, ly=32, logo_size=30)
 
-    # 印章：优先贴品牌印章图，缺失时回退动态绘制
-    # 注：旧 seal-circle-84.png 的「弎」字是方框（生成时字体缺字），勿再用
-    sx, sy = HEAD_W - 56 - 84, 28
-    seal_path = os.path.join(BRAND_DIR, 'seal-uploaded-84.png')
-    if os.path.exists(seal_path):
-        seal = Image.open(seal_path)
-        img.paste(seal, (sx, sy), seal)
-    else:
-        side = 84
-        d.ellipse([sx, sy, sx + side, sy + side], outline=RED, width=3)
-        d.ellipse([sx + 6, sy + 6, sx + side - 6, sy + side - 6], outline=RED, width=1)
-        f_seal = font_cjk('SERIF', 24)   # 必须用含「弎」的字体，MaShanZheng 缺字
-        ccx, ccy = sx + side // 2, sy + side // 2
-        for ch, dx, dy in [('野', -20, -22), ('弎', 6, -22),
-                           ('记', -20, 4), ('水', 6, 4)]:
-            d.text((ccx + dx, ccy + dy), ch, font=f_seal, fill=RED)
+    # 印章：优先贴预制印章图，缺失 → 圆形程序化回退
+    canvas.draw_seal(img, d, brand_dir=BRAND_DIR, style='circle',
+                     asset_name='seal-uploaded-84.png')
 
-    # 4行阶梯文字（左对齐，去掉阶梯偏移）
+    # 4 行摘要（左对齐）：文楷承载信息层，字号自适应
     fs = [20, 26, 32, 22]
-    offs = [0, 0, 0, 0]  # 左对齐，无阶梯偏移
     y = 115
-    MAX_SUM_W = 370  # 摘要单行最大宽度，留出足够间距避免与右侧锚点重叠
+    MAX_SUM_W = 370  # 摘要单行最大宽度，留足与右侧锚点的呼吸间距
     for i, line in enumerate(use_summaries):
-        x = 56 + offs[i]
-        # 自适应字号：内容区用文楷（信息承载层，可读性优先）
-        scaled = None
-        size = fs[i]
-        while size >= 14:
-            fnt = font_lxgw(size)
-            tw = d.textbbox((0, 0), line, font=fnt)[2]
-            if (x + tw) <= x + MAX_SUM_W + 20:
-                scaled = size
-                break
-            size -= 2
-        fnt = font_lxgw(scaled if scaled else 14)
-        # 第三行（观点）用品牌红高亮，其余用墨黑
-        color = RED if i == 2 else INK
+        x = 56
+        fnt, size = canvas.fit_font_size(d, line, 'LXGW', fs[i], 14, MAX_SUM_W + 20)
+        color = canvas.RED if i == 2 else canvas.INK  # 第 3 行（观点）品牌红高亮
         d.text((x, y), line, font=fnt, fill=color)
         y += size + 18
 
-    # 锚点大字 + 圆形装饰：衬线体做视觉锚点，放大版
+    # 锚点大字 + 圆形装饰：衬线体做视觉锚点
     # ax=520 确保与左侧摘要（最远 x≈446）之间留 ~74px 呼吸间距
     ax = 520
-    f_anchor = font_cjk('SERIF', 84 if len(anchor_text) >= 2 else 88)
-    abbox = d.textbbox((0, 0), anchor_text, font=f_anchor)
-    aw = abbox[2] - abbox[0]
-    ah = abbox[3] - abbox[1]
-    ay = 128  # 上移适配更大的字高
-    circle_cx = ax + aw // 2
-    circle_cy = ay + ah // 2
-    circle_r = 88  # 放大圆环
-    d.ellipse([circle_cx - circle_r, circle_cy - circle_r,
-               circle_cx + circle_r, circle_cy + circle_r], outline=LIGHT_RED, width=2)
-    arc_radius = circle_r + 18  # 放大点阵
+    f_anchor = canvas.load_font('SERIF', 84 if len(anchor_text) >= 2 else 88)
+    abox = d.textbbox((0, 0), anchor_text, font=f_anchor)
+    aw, ah = abox[2] - abox[0], abox[3] - abox[1]
+    ay = 128
+    cx, cy, r = ax + aw // 2, ay + ah // 2, 88
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=canvas.LIGHT_RED, width=2)
     for i in range(24):
-        angle = (i * 360 / 24 - 45) * math.pi / 180
-        dx = circle_cx + arc_radius * math.cos(angle)
-        dy = circle_cy + arc_radius * math.sin(angle)
-        d.ellipse([dx - 2, dy - 2, dx + 2, dy + 2], fill=DOT_GREY)
-    d.text((ax, ay), anchor_text, font=f_anchor, fill=RED)
-    d.rectangle([ax, ay + ah + 8, ax + aw, ay + ah + 10], fill=RED)
-    f_sub = font_cjk('NORMAL', 15)
-    d.text((ax + 2, ay + ah + 22), default_cn, font=f_sub, fill=GREY)
-    f_en2 = font_cjk('NORMAL', 12)
-    d.text((ax + 2, ay + ah + 44), default_en, font=f_en2, fill=MID_GREY)
+        ang = (i * 360 / 24 - 45) * math.pi / 180
+        dx = cx + (r + 18) * math.cos(ang)
+        dy = cy + (r + 18) * math.sin(ang)
+        d.ellipse([dx - 2, dy - 2, dx + 2, dy + 2], fill=canvas.DOT_GREY)
+    d.text((ax, ay), anchor_text, font=f_anchor, fill=canvas.RED)
+    d.rectangle([ax, ay + ah + 8, ax + aw, ay + ah + 10], fill=canvas.RED)
+    d.text((ax + 2, ay + ah + 22), default_cn,
+           font=canvas.load_font('NORMAL', 15), fill=canvas.GREY)
+    d.text((ax + 2, ay + ah + 44), default_en,
+           font=canvas.load_font('NORMAL', 12), fill=canvas.MID_GREY)
 
-    # 底部 Slogan + 日期标签
-    d.rectangle([56, HEAD_H - 74, HEAD_W - 56, HEAD_H - 73], fill=(215, 215, 215))
-    f_slogan = font_cjk('NORMAL', 16)
-    d.text((56, HEAD_H - 56), SLOGAN, font=f_slogan, fill=GREY)
-    f_date = font_cjk('BOLD', 17)
-    w = d.textbbox((0, 0), date_str, font=f_date)[2]
-    d.rounded_rectangle([HEAD_W - 56 - w - 28, HEAD_H - 62, HEAD_W - 56, HEAD_H - 30],
-                        radius=6, outline=RED, width=2)
-    d.text((HEAD_W - 56 - w - 14, HEAD_H - 55), date_str, font=f_date, fill=RED)
+    # 底部 slogan + 日期标签
+    canvas.draw_footer(d, date=date_str)
 
-    out_path = f'{OUT_DIR}/封面图-动态提取.png'
+    os.makedirs(OUT_DIR, exist_ok=True)
+    out_path = os.path.join(OUT_DIR, '封面图-动态提取.png')
     img.save(out_path, quality=95)
-    print(f'\n封面图已保存: {out_path}')
+    print('\n封面图已保存: %s' % out_path)
     return out_path
 
-# ── 已知文章摘要缓存（自动提取质量不足时使用）────────────────
-# 格式：正文路径 → {'keyword': str, 'summaries': list[str], 'subtitle': (cn, en)}
-ARTICLE_CACHE = {
-    '/var/minis/shared/gzh-team/选题库/ai-agent-ecosystem-20261006/正文.md': {
-        'keyword': '技能层',
-        'summaries': [
-            '研究了90个AI Agent项目',
-            '框架层开源等于免费',
-            '记忆层是被低估的赛道',
-            '2026.10',
-        ],
-        'subtitle_cn': '当记忆层和技能的窗口打开时',
-        'subtitle_en': 'WHEN MEMORY AND SKILL LAYERS OPEN',
-    },
-}
 
-def _get_cached_article(art_path):
-    """从缓存返回摘要参数，找到返回 dict，否则返回 None"""
-    return ARTICLE_CACHE.get(os.path.abspath(art_path))
+def main():
+    ap = cli.build_parser('cover-dynamic.py', '公众号封面图生成器（动态提取版）')
+    ap.add_argument('article', nargs='?', help='正文 .md 路径')
+    ap.add_argument('--keyword', default=None, help='覆盖锚点关键词')
+    ap.add_argument('--summaries', default=None, help='覆盖 4 行摘要，分号分隔')
+    ap.add_argument('--subtitle', default=None, help='覆盖副标题，"中文;EN"')
+    ap.add_argument('--date', default=None, help='覆盖日期，默认当月 YYYY.MM')
+    a = ap.parse_args()
 
-# ── CLI ───────────────────────────────────────────────────────
-def parse_args():
-    args = {'keyword': None, 'summaries': None, 'subtitle_cn': None,
-            'subtitle_en': None, 'date': None}
-    i = 1
-    while i < len(sys.argv):
-        a = sys.argv[i]
-        if a == '--keyword' and i + 1 < len(sys.argv):
-            args['keyword'] = sys.argv[i + 1]; i += 2
-        elif a == '--summaries' and i + 1 < len(sys.argv):
-            args['summaries'] = sys.argv[i + 1].split(';'); i += 2
-        elif a == '--subtitle' and i + 1 < len(sys.argv):
-            parts = sys.argv[i + 1].split(';')
-            args['subtitle_cn'] = parts[0] if len(parts) > 0 else None
-            args['subtitle_en'] = parts[1] if len(parts) > 1 else None
-            i += 2
-        elif a == '--date' and i + 1 < len(sys.argv):
-            args['date'] = sys.argv[i + 1]; i += 2
-        else:
-            i += 1
-    return args
+    if not a.article:
+        report.die_input('缺少正文路径：用法 cover-dynamic.py <正文.md> [选项]')
+    subs = a.subtitle.split(';') if a.subtitle else []
+    generate_cover(a.article, keyword=a.keyword,
+                   summaries=a.summaries.split(';') if a.summaries else None,
+                   subtitle_cn=subs[0] if len(subs) > 0 else None,
+                   subtitle_en=subs[1] if len(subs) > 1 else None,
+                   date_str=a.date)
+    return 0
+
 
 if __name__ == '__main__':
-    art_path = sys.argv[1] if len(sys.argv) > 1 else '/var/minis/shared/gzh-team/选题库/ai-interview-tdd-20261004/正文.md'
-    args = parse_args()
-    generate_cover(art_path, keyword=args['keyword'], summaries=args['summaries'],
-                   subtitle_cn=args['subtitle_cn'], subtitle_en=args['subtitle_en'],
-                   date_str=args['date'])
+    cli.run_main(main)

@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""
-gzh-brand.py：公众号品牌视觉统一入口（minis-cli gzh 子命令）
-用法：生成品牌视觉资产时调用（cover/all/check/list 子命令）
-关键约束：需指定子命令，基准 md5 锁定见 BASELINE.md
+"""gzh-brand.py：公众号品牌视觉统一入口。
+
+v4 垫片：子命令与 v3.3.0 一致（cover / all / check / list），
+通过 subprocess 调度同目录下的垫片脚本。
+基准 md5 锁定：改动基准图前先更新 BASELINE 表（公开版重建后基准已失效，
+check 仅做机械比对，见重建报告）。
 """
 import argparse
 import hashlib
@@ -10,15 +12,13 @@ import os
 import subprocess
 import sys
 
-# 仓库根目录（原为 /var/minis/shared/gzh-team）与共享工具目录（仓库的上一级）
-GZH_TEAM = os.path.dirname(os.path.abspath(__file__))
-SHARED_DIR = os.environ.get('GZH_SHARED_DIR', os.path.dirname(GZH_TEAM))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-TEAM = GZH_TEAM
-OUT = f'{TEAM}/assets/out'
-BASELINE_DOC = f'{TEAM}/BASELINE.md'
+TEAM = os.path.dirname(os.path.abspath(__file__))
+OUT = os.path.join(TEAM, 'assets', 'out')
+BASELINE_DOC = os.path.join(TEAM, 'BASELINE.md')
 
-# 基准 md5（前 8 位）。改动基准图前必须先改这里 + BASELINE.md。
+# 基准 md5（前 8 位）。公开版脱敏重建后旧基准不再匹配，仅保留结构。
 BASELINE = {
     '封面图-实测3款本地部署模型.png': '06eb8371',
     '首图-关注引导.png':             '37ed8611',
@@ -27,7 +27,7 @@ BASELINE = {
     '品牌名-方案A-定稿.png':         'd94b84fa',
 }
 
-COVER_TITLE = '实测3款本地部署模型'   # 基准封面图所用标题，改前先看 BASELINE.md
+COVER_TITLE = '实测3款本地部署模型'  # 基准封面图所用标题，改前先看 BASELINE.md
 
 
 def md5(path, n=8):
@@ -38,34 +38,37 @@ def md5(path, n=8):
 def run(cmd):
     r = subprocess.run(cmd, cwd=TEAM, capture_output=True, text=True)
     if r.returncode != 0:
-        sys.stderr.write(f'[ERROR] {' '.join(cmd)} exit={r.returncode}\n')
+        sys.stderr.write('[ERROR] %s exit=%d\n' % (' '.join(cmd), r.returncode))
         sys.stderr.write(r.stderr or r.stdout)
         return False
     for line in r.stdout.strip().splitlines():
-        print(f'  {line}')
+        print('  %s' % line)
     return True
 
 
 def gen_brand():
-    return run(['python3', f'{TEAM}/brand-font-schemes.py'])
+    return run([sys.executable, os.path.join(TEAM, 'brand-font-schemes.py')])
 
 
 def gen_cover(title=COVER_TITLE):
-    return run(['python3', f'{TEAM}/cover-dynamic.py', title])
+    # v3.3.0 曾把标题直接当正文路径传给 cover-dynamic.py（该路径不存在即失败）；
+    # v4 改为走 cover-card.py --title（标题型封面的正确入口）。
+    return run([sys.executable, os.path.join(TEAM, 'cover-card.py'),
+                '--title', title])
 
 
 def cmd_cover(a):
     print('生成封面图（带标题 900x383）…')
     if not gen_cover(a.title):
         return 1
-    print(f'输出：{OUT}/封面图-{a.title}.png')
+    print('输出：%s/封面图-%s.png' % (OUT, a.title))
     return 0
 
 
 def cmd_all(a):
     print('全量重生成 5 张基准图…')
     ok = gen_brand()
-    ok &= gen_cover()
+    ok = gen_cover() and ok
     return 0 if ok else 1
 
 
@@ -78,25 +81,28 @@ def cmd_check(a):
     print('基准图 md5 校验')
     for f, want in BASELINE.items():
         if f not in actual:
-            print(f'  [缺失] {f}')
+            print('  [缺失] %s' % f)
             missing += 1
             continue
-        got = md5(f'{OUT}/{f}')
+        got = md5(os.path.join(OUT, f))
         ok = got == want
         drift += 0 if ok else 1
-        mark = 'OK' if ok else f'DRIFT 期望 {want}'
-        print(f'  {"[OK]  " if ok else "[差异]"} {f}  {got}  {mark}')
+        print('  %s %s  %s  %s'
+              % ('[OK]  ' if ok else '[差异]', f, got,
+                 'OK' if ok else 'DRIFT 期望 %s' % want))
 
     extra = sorted(actual - expect)
     if extra:
-        print(f'\n[漂移] 目录内 {len(extra)} 个非基准文件（应只有 {len(BASELINE)} 张）：')
+        print('\n[漂移] 目录内 %d 个非基准文件（应只有 %d 张）：'
+              % (len(extra), len(BASELINE)))
         for f in extra:
-            print(f'  {f}  {os.path.getsize(f"{OUT}/{f}"):>7}B  {md5(f"{OUT}/{f}")}  ← 待确认保留或删除')
+            p = os.path.join(OUT, f)
+            print('  %s  %7dB  %s  ← 待确认保留或删除' % (f, os.path.getsize(p), md5(p)))
 
-    print(f'\n结论：{len(BASELINE)} 张基准中 {len(BASELINE) - drift - missing} 张匹配'
-          f'，{drift} 张漂移，{missing} 张缺失；额外文件 {len(extra)} 个')
+    print('\n结论：%d 张基准中 %d 张匹配，%d 张漂移，%d 张缺失；额外文件 %d 个'
+          % (len(BASELINE), len(BASELINE) - drift - missing, drift, missing, len(extra)))
     if drift or missing or extra:
-        print('修复：`minis-cli gzh all` 重生成（会覆盖漂移项）；'
+        print('修复：`python3 gzh-brand.py all` 重生成（会覆盖漂移项）；'
               '确认要保留的额外文件后更新 BASELINE.md 与本脚本 BASELINE 表')
         return 1
     print('基准无漂移 ✓')
@@ -104,21 +110,22 @@ def cmd_check(a):
 
 
 def cmd_list(a):
-    print(f'{"产物":34s} {"脚本::函数":40s} 尺寸')
+    print('%-34s %-40s 尺寸' % ('产物', '脚本::函数'))
     for name, fn, size in [
-        ('封面图-*.png', 'cover-dynamic.py::generate_cover()', '900x383'),
-        ('首图-关注引导.png', 'brand-font-schemes.py::make_follow_cover()', '450x200'),
+        ('封面图-*.png', 'cover-card.py::cover()', '900x383'),
+        ('封面图-动态提取.png', 'cover-dynamic.py::generate_cover()', '900x383'),
+        ('首图-关注引导.png', 'brand-font-schemes.py::make_follow_cover()', '1080x216'),
         ('尾图-v4.png', 'brand-font-schemes.py::make_tail()', '900x400'),
         ('尾图-v4-预告.png', 'brand-font-schemes.py::make_tail(next_title=)', '900x400'),
-        ('品牌名-方案A-定稿.png', 'brand-font-schemes.py::make_preview()', '1000x320'),
+        ('品牌名-方案A-定稿.png', 'brand-font-schemes.py::make_preview()', '450x200'),
     ]:
-        print(f'{name:34s} {fn:40s} {size}')
-    print(f'\n基准文档：{BASELINE_DOC}')
+        print('%-34s %-40s %s' % (name, fn, size))
+    print('\n基准文档：%s' % BASELINE_DOC)
 
 
 def main():
     ap = argparse.ArgumentParser(
-        prog='minis-cli gzh',
+        prog='gzh-brand.py',
         description='公众号品牌视觉统一入口（封面图/首图/尾图，基准 md5 锁定）')
     sub = ap.add_subparsers(dest='cmd', required=True)
 
@@ -126,7 +133,7 @@ def main():
     p.add_argument('title', nargs='?', default=COVER_TITLE, help='标题（默认用基准标题）')
     p.set_defaults(func=cmd_cover)
 
-    p = sub.add_parser('all', help='全量重生成 5 张基准图')
+    p = sub.add_parser('all', help='全量重生成品牌资产图')
     p.set_defaults(func=cmd_all)
 
     p = sub.add_parser('check', help='基准漂移检测（md5 比对 + 额外文件清点）')

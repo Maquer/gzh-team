@@ -1,173 +1,116 @@
 #!/usr/bin/env python3
-"""
-新版封面生成器 - 精准复刻「AI面试恐怖谷」风格
-尺寸：900x383
+"""cover-new-style.py：新版封面生成器（900x383）。
+
+v4 垫片：版式复刻 v3.3.0（左侧品牌+热搜标题+核心观点 / 右侧圆形装饰+
+艺术大字 / 右上印章 / 右下日期标签），渲染逻辑走 gzhkit.visual.canvas。
+v3.3.0 只接受输出路径位置参数；v4 保留该兼容，并增加 --keyword 等覆盖项。
+
+字体分工（v3.2.0，原样保留）：热点大字用毛笔 MaShanZheng。
+用法：python3 cover-new-style.py [输出路径] [--keyword X] [--lines "a;b;c"]
+      [--topic T] [--date YYYY.MM]
 """
 import os
 import sys
 
-from PIL import Image, ImageDraw, ImageFont
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# 仓库根目录（原为 /var/minis/shared/gzh-team）与共享工具目录（仓库的上一级）
-GZH_TEAM = os.path.dirname(os.path.abspath(__file__))
-SHARED_DIR = os.environ.get('GZH_SHARED_DIR', os.path.dirname(GZH_TEAM))
+from gzhkit import cli
+from gzhkit.visual import canvas
 
-# 颜色
-RED = (194, 69, 60)
-INK = (51, 51, 51)
-PAPER = (250, 248, 245)  # 接近样板的米白色
-GREY = (120, 120, 120)
-WHITE = (255, 255, 255)
+W, H = canvas.COVER_W, canvas.COVER_H
+PAPER_WARM = (250, 248, 245)  # 接近样板的米白色
 
-W, H = 900, 383
-img = Image.new('RGB', (W, H), PAPER)
-draw = ImageDraw.Draw(img)
 
-# 字体加载
-def load_font(name, size):
-    paths = {
-        'bold': '/usr/share/fonts/noto/NotoSansCJK-Bold.ttc',
-        'regular': '/usr/share/fonts/noto/NotoSansCJK-Regular.ttc',
-        'serif': '/usr/share/fonts/noto/NotoSerifCJK-Bold.ttc',
-        'brush': '/usr/share/fonts/noto/MaShanZheng-Regular.ttf',
-        'kai': '/usr/share/fonts/noto/LXGWWenKai-Regular.ttf',
-        'fangzheng': '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc',
-    }
-    fp = paths.get(name)
-    if fp and os.path.exists(fp):
-        try:
-            return ImageFont.truetype(fp, size)
-        except:
-            pass
-    return None
+def generate_new_style(out_path, keyword='智能体', lines=None,
+                       topic='AI智能体生态观察', topic_en='THE ECOSYSTEM',
+                       topic_cn_sub='AI生态的真相', date='2026.10'):
+    canvas.ensure_pillow()
+    lines = lines or ['我研究了90个', 'AI智能体项目', '发现最值钱的不是智能体本身']
 
-# 加载所有字体
-fonts = {
-    'bold': load_font('bold', 28),
-    'regular': load_font('regular', 28),
-    'brush': load_font('brush', 28),
-    'kai': load_font('kai', 28),
-}
+    img, d = canvas.new_canvas(W, H, PAPER_WARM)
 
-def draw_text_xy(draw, text, x, y, font_key, size, color, align='left'):
-    """绘制文本并返回bbox"""
-    font = fonts.get(font_key, fonts['regular'])
-    if font:
-        font = ImageFont.truetype(font.path, size) if hasattr(font, 'path') else font
-        draw.text((x, y), text, fill=color, font=font)
-    else:
-        draw.text((x, y), text, fill=color)
-    bbox = draw.textbbox((x, y), text, font=font)
-    return bbox
+    # ── 左侧品牌区 ──
+    d.line([(20, 48), (100, 48)], fill=canvas.RED, width=2)
+    f_brand = canvas.require_font('MSZ', 30)
+    d.text((20, 10), canvas.BRAND_NAME, fill=canvas.RED, font=f_brand)
+    d.text((22, 42), canvas.BRAND_EN, fill=canvas.GREY,
+           font=canvas.require_font('NORMAL', 12))
 
-# ============================================================
-# 左侧区域 (x: 0-540)
-# ============================================================
+    # ── 热搜标题 ──
+    f_topic = canvas.require_font('BOLD', 16)
+    d.text((20, 65), topic, fill=canvas.RED, font=f_topic)
+    bbox = d.textbbox((20, 65), topic, font=f_topic)
+    d.line([(bbox[0], bbox[3] + 3), (bbox[2], bbox[3] + 3)], fill=canvas.RED, width=2)
 
-# --- 品牌名区 ---
-# 先画红色横线
-draw.line([(20, 48), (100, 48)], fill=RED, width=2)
+    # ── 核心观点（大号黑字）──
+    f_view = canvas.require_font('BOLD', 40)
+    y = 100
+    for line in lines:
+        d.text((20, y), line, fill=canvas.INK, font=f_view)
+        y += 50
 
-# 品牌名「<YOUR_BRAND>」
-f_brush_30 = load_font('brush', 30)
-if f_brush_30:
-    draw.text((20, 10), '<YOUR_BRAND>', fill=RED, font=f_brush_30)
-else:
-    draw.text((20, 10), '<YOUR_BRAND>', fill=RED)
+    f_small = canvas.require_font('NORMAL', 14)
+    d.text((20, 300), '%s · 深度观察' % date, fill=canvas.GREY, font=f_small)
+    d.text((20, 340), canvas.SLOGAN, fill=canvas.GREY,
+           font=canvas.require_font('NORMAL', 11))
 
-# 英文副标
-f_reg_12 = load_font('regular', 12)
-draw.text((22, 42), 'SANS HUI YE JI', fill=GREY, font=f_reg_12)
+    # ── 右侧圆形装饰 ──
+    cx, cy, r = 720, 185, 75
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=canvas.RED, width=1)
+    for angle in range(0, 360, 12):
+        rad = angle * 3.14159 / 180
+        dx = cx + (r - 8) * (1 if angle < 180 else -1)
+        dy = cy + (r - 8) * 0.5 * (angle / 180 if angle < 180 else 2 - angle / 180)
+        d.ellipse([dx - 2, dy - 2, dx + 2, dy + 2], fill=canvas.RED)
 
-# --- 热搜标题 ---
-f_bold_16 = load_font('bold', 16)
-draw.text((20, 65), 'AI智能体生态观察', fill=RED, font=f_bold_16)
-# 下划线
-bbox = draw.textbbox((20, 65), 'AI智能体生态观察', font=f_bold_16)
-draw.line([(bbox[0], bbox[3]+3), (bbox[2], bbox[3]+3)], fill=RED, width=2)
+    # ── 艺术大字（毛笔）──
+    f_art = canvas.require_font('MSZ', 90)
+    d.text((540, 100), keyword, fill=canvas.RED, font=f_art)
+    d.text((545, 210), topic_cn_sub, fill=canvas.GREY, font=f_small)
+    d.text((555, 228), topic_en, fill=canvas.GREY,
+           font=canvas.require_font('NORMAL', 12))
 
-# --- 核心观点（大号黑字）---
-f_bold_40 = load_font('bold', 40)
-lines = ['我研究了90个', 'AI智能体项目', '发现最值钱的不是智能体本身']
-y = 100
-for line in lines:
-    if f_bold_40:
-        draw.text((20, y), line, fill=INK, font=f_bold_40)
-    else:
-        draw.text((20, y), line, fill=INK)
-    y += 50
+    # ── 印章（右上红色圆形，程序化绘制）──
+    seal_size, sx, sy = 70, W - 70 - 15, 15
+    d.ellipse([sx, sy, sx + seal_size, sy + seal_size],
+              outline=canvas.RED, width=3)
+    f_seal = canvas.require_font('MSZ', 18)
+    d.text((sx + 20, sy + 8), canvas.SEAL_CHARS[0], fill=canvas.RED, font=f_seal)
+    d.text((sx + 20, sy + 35), canvas.SEAL_CHARS[1], fill=canvas.RED, font=f_seal)
 
-# --- 时间标签 ---
-f_reg_14 = load_font('regular', 14)
-draw.text((20, 300), '2026.10 · 深度观察', fill=GREY, font=f_reg_14)
-
-# --- 底部Slogan ---
-f_reg_12 = load_font('regular', 11)
-draw.text((20, 340), '野路实测，笔记为证：留下能用的', fill=GREY, font=f_reg_12)
-
-# ============================================================
-# 右侧区域 (x: 540-900)
-# ============================================================
-
-# --- 圆形装饰 ---
-cx, cy = 720, 185
-r = 75
-
-# 外圆（细线）
-draw.ellipse([cx-r, cy-r, cx+r, cy+r], outline=RED, width=1)
-
-# 内圆（虚线效果 - 用点表示）
-for angle in range(0, 360, 12):
-    rad = angle * 3.14159 / 180
-    dx = cx + (r - 8) * (1 if angle < 180 else -1)
-    dy = cy + (r - 8) * 0.5 * (angle / 180 if angle < 180 else 2 - angle/180)
-    draw.ellipse([dx-2, dy-2, dx+2, dy+2], fill=RED)
-
-# --- 艺术大字「智能体」---
-f_brush_90 = load_font('brush', 90)
-if f_brush_90:
-    draw.text((540, 100), '智能体', fill=RED, font=f_brush_90)
-else:
-    draw.text((540, 100), '智能体', fill=RED)
-
-# --- 副标题 ---
-draw.text((545, 210), 'AI生态的真相', fill=GREY, font=f_reg_14)
-draw.text((555, 228), 'THE ECOSYSTEM', fill=GREY, font=f_reg_12)
-
-# ============================================================
-# 印章（右上红色圆形）
-# ============================================================
-seal_size = 70
-seal_x, seal_y = W - seal_size - 15, 15
-
-# 红色圆圈
-draw.ellipse([seal_x, seal_y, seal_x+seal_size, seal_y+seal_size], 
-             outline=RED, fill=None, width=3)
-
-# 印章文字（垂直排列）
-f_brush_18 = load_font('brush', 18)
-if f_brush_18:
-    draw.text((seal_x + 20, seal_y + 8), '弎', fill=RED, font=f_brush_18)
-    draw.text((seal_x + 20, seal_y + 35), '水', fill=RED, font=f_brush_18)
-else:
-    # 备用：简单圆形内写文字
-    draw.text((seal_x + 15, seal_y + 20), '弎水', fill=RED)
-
-# ============================================================
-# 日期标签（右下角红色方框）
-# ============================================================
-date_text = '2026.10'
-f_bold_14 = load_font('bold', 14)
-if f_bold_14:
-    bbox = draw.textbbox((0,0), date_text, font=f_bold_14)
-    dw, dh = bbox[2]-bbox[0], bbox[3]-bbox[1]
+    # ── 日期标签（右下角红色方框）──
+    f_date = canvas.require_font('BOLD', 14)
+    bbox = d.textbbox((0, 0), date, font=f_date)
+    dw, dh = bbox[2] - bbox[0], bbox[3] - bbox[1]
     x, y = W - 25 - dw, H - 25 - dh
-    draw.rectangle([x-3, y-3, x+dw+3, y+dh+3], outline=RED, fill=PAPER, width=2)
-    draw.text((x, y), date_text, fill=RED, font=f_bold_14)
+    d.rectangle([x - 3, y - 3, x + dw + 3, y + dh + 3],
+                outline=canvas.RED, fill=PAPER_WARM, width=2)
+    d.text((x, y), date, fill=canvas.RED, font=f_date)
 
-# 保存
-out_path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(GZH_TEAM, 'assets', 'out', '封面图-新风格.png')
-os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
-img.save(out_path, 'PNG')
-print(f"✅ 封面生成成功：{os.path.getsize(out_path)} 字节")
-print(f"尺寸：{img.size}")
+    os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
+    img.save(out_path, 'PNG')
+    print('✅ 封面生成成功：%d 字节' % os.path.getsize(out_path))
+    print('尺寸：%s' % (img.size,))
+    return out_path
+
+
+def main():
+    ap = cli.build_parser('cover-new-style.py', '新版封面生成器（900x383）')
+    ap.add_argument('out', nargs='?',
+                    default=os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                         'assets', 'out', '封面图-新风格.png'),
+                    help='输出路径')
+    ap.add_argument('--keyword', default='智能体', help='右侧艺术大字')
+    ap.add_argument('--lines', default=None, help='左侧核心观点行，分号分隔')
+    ap.add_argument('--topic', default='AI智能体生态观察', help='热搜标题')
+    ap.add_argument('--date', default='2026.10', help='日期标签')
+    a = ap.parse_args()
+
+    generate_new_style(a.out, keyword=a.keyword,
+                       lines=a.lines.split(';') if a.lines else None,
+                       topic=a.topic, date=a.date)
+    return 0
+
+
+if __name__ == '__main__':
+    cli.run_main(main)
