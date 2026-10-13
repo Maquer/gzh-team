@@ -1,0 +1,10 @@
+{
+  "content-creation": {
+    "avoid-ai-writing": "PARTIAL",
+    "writing-dna-skill": "PARTIAL"
+  },
+  "tool-development": {
+    "archify": "ACTIVE",
+    "watermarks-remover": "ACTIVE"
+  }
+}

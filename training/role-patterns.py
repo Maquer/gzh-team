@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-role-patterns.py —— 公众号团队角色卡的增长型 pattern 存储
+"""role-patterns.py —— 公众号团队角色卡的增长型 pattern 存储。
+
+v4.0.0 重建：结构清理（统一 CLI / 退出码 / 缺依赖提示），pattern 逻辑与 v3.3.0 一致。
 
 设计依据（ProfSynapse 借鉴，机制自实现）：
   1. pattern 长进角色卡文件本身 → gzh-dispatch.py 逐字注入卡片，自动带出，派发链路零改动
@@ -20,10 +21,18 @@ role-patterns.py —— 公众号团队角色卡的增长型 pattern 存储
 pattern 条目格式: - [YYYY-MM-DD] 内容
 上限: 每角色每类 12 条，超了 FIFO 淘汰最旧
 去重: 归一化（strip+去标点空白）后完全相同则跳过
+
+退出码：0 成功；1 业务失败（角色卡缺失/段缺失/空 query）；2 参数错误。
 """
-import sys, re, argparse
-from pathlib import Path
+import os
+import re
+import sys
 from datetime import datetime, timedelta
+from pathlib import Path
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from gzhkit import cli as gzh_cli
 
 CARD_DIR = Path(__file__).resolve().parent / "skills"
 ROLES = ["01-选题规划师", "02-主笔", "03-审核", "04-排版",
@@ -31,11 +40,12 @@ ROLES = ["01-选题规划师", "02-主笔", "03-审核", "04-排版",
 ROLE_FILES = {r: CARD_DIR / (r + ".md") for r in ROLES}
 MAX_PER_SECTION = 12
 PATTERN_LINE = re.compile(r'^- \[(\d{4}-\d{2}-\d{2})\] (.+)$')
+HEADINGS = (("## 成功模式", "🟢"), ("## 失败模式", "🔴"))
 
 
 def section_bounds(text, heading):
-    """找 heading 段：返回 (start_idx_of_first_line, end_idx_of_last_line, 或 None)。
-    段 = 从该 heading 行起，到下一个 ## 开头行或文件尾。"""
+    """找 heading 段：返回 (start, end, lines)，段 = 从该 heading 行起，
+    到下一个 ## 开头行或文件尾；找不到返回 None。"""
     lines = text.split("\n")
     start = None
     for i, ln in enumerate(lines):
@@ -50,6 +60,13 @@ def section_bounds(text, heading):
             end = j - 1
             break
     return (start, end, lines)
+
+
+def start_i(lines, heading):
+    for i, ln in enumerate(lines):
+        if ln.strip() == heading:
+            return i
+    return 0
 
 
 def norm(s):
@@ -67,6 +84,13 @@ def collapse_blanks(lines):
     return out
 
 
+def read_card(role):
+    p = ROLE_FILES[role]
+    if not p.exists():
+        return None
+    return p.read_text(encoding="utf-8")
+
+
 def cmd_add(args):
     p = ROLE_FILES[args.role]
     if not p.exists():
@@ -81,7 +105,7 @@ def cmd_add(args):
     if b is None:
         print("❌ %s 缺「%s」段，先跑 init 子命令" % (args.role, heading), file=sys.stderr)
         return 1
-    _, end, lines = b
+    start, end, lines = b
 
     # 去重
     for ln in lines:
@@ -112,13 +136,6 @@ def cmd_add(args):
     return 0
 
 
-def start_i(lines, heading):
-    for i, ln in enumerate(lines):
-        if ln.strip() == heading:
-            return i
-    return 0
-
-
 def cmd_list(args):
     for role in (ROLES if args.all else [args.role]):
         p = ROLE_FILES[role]
@@ -126,7 +143,7 @@ def cmd_list(args):
             continue
         txt = p.read_text(encoding="utf-8")
         pats = []
-        for h, label in (("## 成功模式", "🟢"), ("## 失败模式", "🔴")):
+        for h, label in HEADINGS:
             b = section_bounds(txt, h)
             if not b:
                 continue
@@ -160,7 +177,7 @@ def cmd_recall(args):
         if not p.exists():
             continue
         txt = p.read_text(encoding="utf-8")
-        for h, label in (("## 成功模式", "🟢"), ("## 失败模式", "🔴")):
+        for h, label in HEADINGS:
             b = section_bounds(txt, h)
             if not b:
                 continue
@@ -227,8 +244,8 @@ def cmd_init(args):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="公众号团队角色卡 pattern 管理")
-    sub = ap.add_subparsers(dest="cmd", required=True)
+    parser = gzh_cli.build_parser("training/role-patterns.py", "公众号团队角色卡 pattern 管理")
+    sub = parser.add_subparsers(dest="cmd", required=True)
 
     s = sub.add_parser("add", help="追加一条 pattern")
     s.add_argument("--role", required=True, choices=ROLES)
@@ -253,9 +270,9 @@ def main():
     s = sub.add_parser("init", help="初始化角色卡的 pattern 段")
     s.set_defaults(func=cmd_init)
 
-    args = ap.parse_args()
+    args = parser.parse_args()
     return args.func(args)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    gzh_cli.run_main(main)

@@ -1,207 +1,209 @@
 #!/usr/bin/env python3
+"""archive_note_generator.py：生成归档笔记（Markdown 格式）。
+
+v4.0.0 重建：干净重写，笔记模板与 v3.3.0 一致。
+用法：归档完成后调用 generate_all_notes() 自动生成。
+关键约束：需指定 workspace_dir，输出到 archive_notes/ 目录。
+
+退出码：0 成功；2 参数错误 / 输入文件不可读 / JSON 解析失败。
 """
-archive_note_generator.py：生成归档笔记（Markdown 格式）
-用法：归档完成后调用 generate_all_notes() 自动生成
-关键约束：需指定 workspace_dir，输出到 archive_notes/ 目录
-"""
-import json
 import argparse
-from pathlib import Path
+import json
+import os
+import sys
 from datetime import datetime
+from pathlib import Path
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from gzhkit import cli as gzh_cli
+
+
+def note_content(tool_name, decision, timestamp):
+    """按决策类型生成归档笔记（与 archives_optimizer.py 的模板一致）。"""
+    if decision in ("FORCE_INSTALL", "FULL_INSTALL"):
+        return (
+            "# %s\n"
+            "> 核心价值：P0 强制执行工具\n"
+            "> 决策边界：环境不可用则归档\n"
+            "> P1 借鉴：架构设计与执行流程\n"
+            "> 域内边界：iSH 环境限制\n"
+            "\n"
+            "## 核心定位\n"
+            "%s 是 P0 级工具，在当前环境中强制执行。\n"
+            "\n"
+            "## 核心差异\n"
+            "与同类工具不同之处在于自动化执行能力。\n"
+            "\n"
+            "## P1 借鉴\n"
+            "从其他工具中借鉴执行流程和架构设计。\n"
+            "\n"
+            "## 域内边界\n"
+            "%s 的应用受限于 iSH 环境限制。\n"
+            "\n"
+            "生成时间：%s\n" % (tool_name, tool_name, tool_name, timestamp)
+        )
+    if decision == "PARTIAL_INSTALL":
+        return (
+            "# %s\n"
+            "> 核心价值：P1 部分执行工具\n"
+            "> 决策边界：环境可用性与领域重合度\n"
+            "> P1 借鉴：边界管理和工具池管理\n"
+            "> 域内边界：特定领域工具\n"
+            "\n"
+            "## 核心定位\n"
+            "%s 是 P1 级工具，在特定领域有限执行。\n"
+            "\n"
+            "## 核心差异\n"
+            "与同类工具不同之处在于边界管理和部分执行能力。\n"
+            "\n"
+            "## P1 借鉴\n"
+            "从其他工具中借鉴边界管理和工具池管理。\n"
+            "\n"
+            "## 域内边界\n"
+            "%s 的应用受限于特定领域。\n"
+            "\n"
+            "生成时间：%s\n" % (tool_name, tool_name, tool_name, timestamp)
+        )
+    # ARCHIVE_ONLY 及其它
+    return (
+        "# %s\n"
+        "> 核心价值：P2/P3 仅归档工具\n"
+        "> 决策边界：环境不可用 + 领域错位\n"
+        "> P1 借鉴：无直接借鉴\n"
+        "> 域内边界：完全归档工具\n"
+        "\n"
+        "## 核心定位\n"
+        "%s 归档仅供参考，无实际执行能力。\n"
+        "\n"
+        "## 核心差异\n"
+        "与同类工具不同之处在于完全归档且无实际应用。\n"
+        "\n"
+        "## P1 借鉴\n"
+        "无直接借鉴。\n"
+        "\n"
+        "## 域内边界\n"
+        "%s 完全归档，不具备实际应用条件。\n"
+        "\n"
+        "生成时间：%s\n" % (tool_name, tool_name, tool_name, timestamp)
+    )
+
 
 class ArchiveNoteGenerator:
     def __init__(self, workspace_dir=None, tools_file=None):
-        self.workspace_dir = Path(workspace_dir or Path(__file__).resolve().parent)
+        self.workspace_dir = Path(workspace_dir or os.path.dirname(os.path.abspath(__file__)))
         self.decision_log_file = self.workspace_dir / "decision_log.json"
-        self.active_tools_file = Path(tools_file) if tools_file else self.workspace_dir / "active_tools.json"
-        
+        self.active_tools_file = (Path(tools_file) if tools_file
+                                  else self.workspace_dir / "active_tools.json")
+
+    def _load_json(self, path):
+        if not path.exists():
+            return []
+        try:
+            with open(path, encoding="utf-8") as f:
+                return json.load(f)
+        except (OSError, ValueError) as e:
+            print("错误：无法解析 %s: %s" % (path, e), file=sys.stderr)
+            sys.exit(2)
+
     def load_decisions(self):
         """读取 decision_log.json；同一工具多条记录时保留最新一条。"""
-        if not self.decision_log_file.exists():
-            return []
-        with open(self.decision_log_file, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        data = self._load_json(self.decision_log_file)
         latest = {}
         for d in data:
-            if not isinstance(d, dict) or 'tool_name' not in d:
+            if not isinstance(d, dict) or "tool_name" not in d:
                 continue
-            prev = latest.get(d['tool_name'])
-            if prev is None or str(d.get('timestamp', '')) >= str(prev.get('timestamp', '')):
-                latest[d['tool_name']] = d
+            prev = latest.get(d["tool_name"])
+            if prev is None or str(d.get("timestamp", "")) >= str(prev.get("timestamp", "")):
+                latest[d["tool_name"]] = d
         return list(latest.values())
 
     def load_active_tools(self):
-        if not self.active_tools_file.exists():
-            return []
-        with open(self.active_tools_file, 'r', encoding='utf-8') as f:
-            return json.load(f)
-
-    def generate_note_content(self, tool_name, decision, timestamp):
-        """按决策类型生成归档笔记（与 archives_optimizer.py 的模板一致）。"""
-        if decision in ("FORCE_INSTALL", "FULL_INSTALL"):
-            content = f"""# {tool_name}
-> 核心价值：P0 强制执行工具
-> 决策边界：环境不可用则归档
-> P1 借鉴：架构设计与执行流程
-> 域内边界：iSH 环境限制
-
-## 核心定位
-{tool_name} 是 P0 级工具，在当前环境中强制执行。
-
-## 核心差异
-与同类工具不同之处在于自动化执行能力。
-
-## P1 借鉴
-从其他工具中借鉴执行流程和架构设计。
-
-## 域内边界
-{tool_name} 的应用受限于 iSH 环境限制。
-
-生成时间：{timestamp}
-"""
-        elif decision == "PARTIAL_INSTALL":
-            content = f"""# {tool_name}
-> 核心价值：P1 部分执行工具
-> 决策边界：环境可用性与领域重合度
-> P1 借鉴：边界管理和工具池管理
-> 域内边界：特定领域工具
-
-## 核心定位
-{tool_name} 是 P1 级工具，在特定领域有限执行。
-
-## 核心差异
-与同类工具不同之处在于边界管理和部分执行能力。
-
-## P1 借鉴
-从其他工具中借鉴边界管理和工具池管理。
-
-## 域内边界
-{tool_name} 的应用受限于特定领域。
-
-生成时间：{timestamp}
-"""
-        else:  # ARCHIVE_ONLY 及其它
-            content = f"""# {tool_name}
-> 核心价值：P2/P3 仅归档工具
-> 决策边界：环境不可用 + 领域错位
-> P1 借鉴：无直接借鉴
-> 域内边界：完全归档工具
-
-## 核心定位
-{tool_name} 归档仅供参考，无实际执行能力。
-
-## 核心差异
-与同类工具不同之处在于完全归档且无实际应用。
-
-## P1 借鉴
-无直接借鉴。
-
-## 域内边界
-{tool_name} 完全归档，不具备实际应用条件。
-
-生成时间：{timestamp}
-"""
-        return content
+        return self._load_json(self.active_tools_file)
 
     def generate_all_notes(self):
         print("开始生成归档笔记...")
-        
-        # 加载数据
+
         decisions = self.load_decisions()
         active_tools = self.load_active_tools()
-        
-        # 创建归档笔记目录
+
         notes_dir = self.workspace_dir / "archive_notes"
         notes_dir.mkdir(exist_ok=True)
-        
-        # 生成每个活跃工具的归档笔记
+
         generated_notes = []
         for tool in active_tools:
-            tool_name = tool['name']
-            
-            # 查找对应的决策
+            tool_name = tool["name"]
+
             tool_decision = None
             tool_timestamp = None
             for decision in decisions:
-                if decision['tool_name'] == tool_name:
-                    tool_decision = decision['decision']
-                    tool_timestamp = decision['timestamp']
+                if decision["tool_name"] == tool_name:
+                    tool_decision = decision["decision"]
+                    tool_timestamp = decision["timestamp"]
                     break
-            
+
             if not tool_decision:
-                print(f"  警告: {tool_name} 没有对应的决策，跳过")
+                print("  警告: %s 没有对应的决策，跳过" % tool_name)
                 continue
-            
-            # 生成归档笔记
-            note_content = self.generate_note_content(tool_name, tool_decision, tool_timestamp)
-            
-            # 保存归档笔记
-            note_file = notes_dir / f"archive_note_{tool_name}.md"
-            with open(note_file, 'w', encoding='utf-8') as f:
-                f.write(note_content)
-            
+
+            note_file = notes_dir / ("archive_note_%s.md" % tool_name)
+            with open(note_file, "w", encoding="utf-8") as f:
+                f.write(note_content(tool_name, tool_decision, tool_timestamp))
+
             generated_notes.append({
                 "tool_name": tool_name,
                 "decision": tool_decision,
-                "note_file": str(note_file)
+                "note_file": str(note_file),
             })
-            
-            print(f"  已生成归档笔记: {tool_name} ({tool_decision})")
-        
-        # 生成汇总报告
+            print("  已生成归档笔记: %s (%s)" % (tool_name, tool_decision))
+
         self.generate_summary_report(generated_notes)
-        
-        print(f"\n归档笔记生成完成！共生成 {len(generated_notes)} 个归档笔记")
-        return generated_notes
-    
+        print("\n归档笔记生成完成！共生成 %d 个归档笔记" % len(generated_notes))
+        return 0
+
     def generate_summary_report(self, generated_notes):
         report_file = self.workspace_dir / "archive_generation_report.md"
-        
-        with open(report_file, 'w') as f:
+
+        with open(report_file, "w", encoding="utf-8") as f:
             f.write("# 归档笔记生成报告\n\n")
-            f.write(f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
-            
-            # 统计信息
+            f.write("生成时间: %s\n\n" % datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
             f.write("## 统计信息\n\n")
-            f.write(f"总归档笔记数: {len(generated_notes)}\n\n")
-            
-            # 按决策类型统计
+            f.write("总归档笔记数: %d\n\n" % len(generated_notes))
+
             decision_counts = {}
             for note in generated_notes:
-                decision = note['decision']
+                decision = note["decision"]
                 decision_counts[decision] = decision_counts.get(decision, 0) + 1
-            
+
             f.write("决策类型分布:\n\n")
             f.write("| 决策类型 | 数量 | 比例 |\n")
             f.write("|-----------|------|------|\n")
-            
+
             total = len(generated_notes)
             for decision, count in decision_counts.items():
                 ratio = (count / total) * 100 if total else 0
-                f.write(f"| {decision} | {count} | {ratio:.1f}% |\n")
-            
-            f.write("\n")
-            
-            # 详细列表
-            f.write("## 归档笔记列表\n\n")
+                f.write("| %s | %d | %.1f%% |\n" % (decision, count, ratio))
+
+            f.write("\n## 归档笔记列表\n\n")
             for note in generated_notes:
-                f.write(f"### {note['tool_name']}\n")
-                f.write(f"- 决策: {note['decision']}\n")
-                f.write(f"- 文件: {note['note_file']}\n\n")
-        
-        print(f"汇总报告已生成: {report_file}")
-    
-    def run(self):
-        self.generate_all_notes()
+                f.write("### %s\n" % note["tool_name"])
+                f.write("- 决策: %s\n" % note["decision"])
+                f.write("- 文件: %s\n\n" % note["note_file"])
+
+        print("汇总报告已生成: %s" % report_file)
+
 
 def main():
-    parser = argparse.ArgumentParser(description="归档笔记生成器")
-    parser.add_argument("--tools", help="要生成的工具列表文件")
-    
+    parser = gzh_cli.build_parser("archive_note_generator.py", "归档笔记生成器")
+    parser.add_argument("--tools", default=None, help="要生成的工具列表文件")
+    parser.add_argument("--workspace", default=None, help="工作目录（默认脚本所在目录）")
     args = parser.parse_args()
-    
-    generator = ArchiveNoteGenerator(tools_file=args.tools)
-    generator.run()
+
+    generator = ArchiveNoteGenerator(workspace_dir=args.workspace,
+                                     tools_file=args.tools)
+    return generator.generate_all_notes()
+
 
 if __name__ == "__main__":
-    main()
+    gzh_cli.run_main(main)

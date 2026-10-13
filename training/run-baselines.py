@@ -1,18 +1,35 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""第 2 次岗位培训：7 岗基线实测（2026-09-19）
+"""第 2 次岗位培训：7 岗基线实测（2026-09-19）。
+
+v4.0.0 重建：结构清理（统一 CLI / 退出码 / 缺依赖提示），实测逻辑与 v3.3.0 一致。
 跑 7 个非主笔岗的基线，产出基线数据填 TRAINING.md §2 表格。
 用法：python3 run-baselines.py --model <model_id>
+
+退出码：0 完成；2 参数错误 / minis-model-use 缺失。
 """
-import subprocess, json, os, io, time, argparse, re
+import argparse
+import io
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from gzhkit import cli as gzh_cli
+
 BASE = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR = os.path.join(BASE, 'baselines')
 
-BANNED = ['首先','其次','此外','总而言之','不可否认','需要关注的是','接下来',
-          '需要注意的是','换句话说']
-URGENCY = ['速看','马上删','惊呆了','震惊','必看','全网首个','全网第一']
-URGENCY_SOFT = ['立即','紧急','限时']  # 弱紧迫词，脚本不判 FAIL
-META = ['我作为 AI','作为助手','让我们深入探讨','总而言之，让我们','接下来让我们一起']
+BANNED = ['首先', '其次', '此外', '总而言之', '不可否认', '需要关注的是', '接下来',
+          '需要注意的是', '换句话说']
+URGENCY = ['速看', '马上删', '惊呆了', '震惊', '必看', '全网首个', '全网第一']
+URGENCY_SOFT = ['立即', '紧急', '限时']  # 弱紧迫词，脚本不判 FAIL
+META = ['我作为 AI', '作为助手', '让我们深入探讨', '总而言之，让我们', '接下来让我们一起']
 
 # 7 岗任务（09 结构梳理不在 dispatch 映射，跳过）
 TASKS = [
@@ -26,18 +43,20 @@ TASKS = [
     ('09-结构梳理', '为「AI 写作工具评测」选题出结构方案。给出：结构案（标题 / 观点 / 分节结构 / 字数预算）/ 每节要回答的问题 / 金句位 / 配图位 / 反例。'),
 ]
 
+
 def dispatch_prompt(role, task):
-    r = subprocess.run(['python3', f'{BASE}/gzh-dispatch.py', task,
+    r = subprocess.run(['python3', '%s/gzh-dispatch.py' % BASE, task,
                         '--role-card', role, '--dry-run'],
                        capture_output=True, text=True, timeout=30)
     return r.stdout
 
+
 def call_model(prompt, model, max_tokens=4000):
-    payload = {"messages":[{"role":"user","content":prompt}],"max_tokens":max_tokens}
-    with io.open('/tmp/_base_prompt.json','w',encoding='utf-8') as f:
+    payload = {"messages": [{"role": "user", "content": prompt}], "max_tokens": max_tokens}
+    with io.open('/tmp/_base_prompt.json', 'w', encoding='utf-8') as f:
         json.dump(payload, f, ensure_ascii=False)
-    r = subprocess.run(['minis-model-use','run','--model',model,
-                        '--input','/tmp/_base_prompt.json'],
+    r = subprocess.run(['minis-model-use', 'run', '--model', model,
+                        '--input', '/tmp/_base_prompt.json'],
                        capture_output=True, text=True, timeout=180)
     if r.returncode != 0:
         return None, r.stderr[:200]
@@ -49,7 +68,8 @@ def call_model(prompt, model, max_tokens=4000):
             return None, 'empty output: ' + json.dumps(d, ensure_ascii=False)[:200]
         return txt, None
     except Exception as e:
-        return None, f'parse: {e}'
+        return None, 'parse: %s' % e
+
 
 def check_rules(text):
     out = {}
@@ -60,47 +80,65 @@ def check_rules(text):
     out['pass'] = not (out['元话语'] or out['禁用词'] or out['紧迫诱导词'] or out['占位符'])
     return out
 
+
 def run_one(role, task, model, interval):
-    print(f'\n=== {role} ===')
+    print('\n=== %s ===' % role)
     prompt = dispatch_prompt(role, task)
     text, err = call_model(prompt, model)
     if not text:
-        print(f'  失败: {err}')
-        return {'role':role,'task':task,'file':None,'rules':None,'status':'fail','err':err}
-    safe_role = role.replace('-','_')
-    out_path = os.path.join(OUT_DIR, f'baseline-{safe_role}.md')
-    io.open(out_path,'w',encoding='utf-8').write(text)
-    print(f'  产出: {out_path} ({len(text)} 字符)')
+        print('  失败: %s' % err)
+        return {'role': role, 'task': task, 'file': None, 'rules': None,
+                'status': 'fail', 'err': err}
+    safe_role = role.replace('-', '_')
+    out_path = os.path.join(OUT_DIR, 'baseline-%s.md' % safe_role)
+    io.open(out_path, 'w', encoding='utf-8').write(text)
+    print('  产出: %s (%d 字符)' % (out_path, len(text)))
     time.sleep(interval)
     rules = check_rules(text)
-    print(f'  通用规则: {rules["pass"]} (元话语={rules["元话语"]} 禁用词={rules["禁用词"]} 紧迫={rules["紧迫诱导词"]} 占位符={rules["占位符"]})')
-    return {'role':role,'task':task,'file':out_path,'rules':rules,'status':'ok','chars':len(text)}
+    print('  通用规则: %s (元话语=%s 禁用词=%s 紧迫=%s 占位符=%s)'
+          % (rules["pass"], rules["元话语"], rules["禁用词"],
+             rules["紧迫诱导词"], rules["占位符"]))
+    return {'role': role, 'task': task, 'file': out_path, 'rules': rules,
+            'status': 'ok', 'chars': len(text)}
+
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument('--model', default='sensenova-6.8-flash-lite')
-    ap.add_argument('--interval', type=int, default=45)
-    ap.add_argument('--only', default=None, help='只跑某个岗（如 01-选题规划师）')
-    args = ap.parse_args()
+    parser = gzh_cli.build_parser("training/run-baselines.py", "第 2 次岗位培训：7 岗基线实测")
+    parser.add_argument('--model', default='sensenova-6.8-flash-lite', help='模型 ID')
+    parser.add_argument('--interval', type=int, default=45, help='两岗之间的间隔秒数')
+    parser.add_argument('--only', default=None, help='只跑某个岗（如 01-选题规划师）')
+    args = parser.parse_args()
+
+    if shutil.which('minis-model-use') is None:
+        print('错误：缺少依赖 minis-model-use（模型调用 CLI，未在 PATH 中找到）。',
+              file=sys.stderr)
+        print('      基线实测需要它调用模型；请先安装/配置后再跑。', file=sys.stderr)
+        return 2
+
     print('模型:', args.model, '| 间隔:', args.interval, 's')
-    tasks = TASKS if not args.only else [t for t in TASKS if t[0]==args.only]
+    tasks = TASKS if not args.only else [t for t in TASKS if t[0] == args.only]
     results = []
     for role, task in tasks:
         try:
             results.append(run_one(role, task, args.model, args.interval))
         except Exception as e:
-            print(f'  异常: {e}')
-            results.append({'role':role,'task':task,'file':None,'rules':None,'status':'error','err':str(e)})
-    summary = {'model':args.model, 'timestamp':time.strftime('%Y-%m-%d %H:%M'),
-               'results':results, 'total':len(results),
-               'ok':sum(1 for r in results if r['status']=='ok'),
-               'rules_pass':sum(1 for r in results if r['rules'] and r['rules']['pass'])}
-    report_path = os.path.join(OUT_DIR, f'report-{time.strftime("%Y%m%d-%H%M")}.json')
-    io.open(report_path,'w',encoding='utf-8').write(json.dumps(summary, ensure_ascii=False, indent=2))
-    print('\n' + '='*60)
-    print(f'完成: {summary["ok"]}/{summary["total"]} 岗成功')
-    print(f'通用规则通过率: {summary["rules_pass"]}/{summary["ok"]}')
-    print(f'报告: {report_path}')
+            print('  异常: %s' % e)
+            results.append({'role': role, 'task': task, 'file': None, 'rules': None,
+                            'status': 'error', 'err': str(e)})
+    summary = {'model': args.model, 'timestamp': time.strftime('%Y-%m-%d %H:%M'),
+               'results': results, 'total': len(results),
+               'ok': sum(1 for r in results if r['status'] == 'ok'),
+               'rules_pass': sum(1 for r in results if r['rules'] and r['rules']['pass'])}
+    os.makedirs(OUT_DIR, exist_ok=True)
+    report_path = os.path.join(OUT_DIR, 'report-%s.json' % time.strftime("%Y%m%d-%H%M"))
+    io.open(report_path, 'w', encoding='utf-8').write(
+        json.dumps(summary, ensure_ascii=False, indent=2))
+    print('\n' + '=' * 60)
+    print('完成: %d/%d 岗成功' % (summary["ok"], summary["total"]))
+    print('通用规则通过率: %d/%d' % (summary["rules_pass"], summary["ok"]))
+    print('报告: %s' % report_path)
+    return 0
+
 
 if __name__ == '__main__':
-    main()
+    gzh_cli.run_main(main)

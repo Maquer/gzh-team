@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-培训体系派发入口 —— 岗位技能卡 + 任务 → 可执行 prompt
+"""培训体系派发入口 —— 岗位技能卡 + 任务 → 可执行 prompt。
+
+v4.0.0 重建：结构清理（统一 CLI / 退出码 / 缺依赖提示），派发逻辑与 v3.3.0 一致。
 
 为什么独立成脚本而不是改 company-mode.py：
 company-mode.py 是 6 个通用后端（coding/writing/research/decision/explain/default），
@@ -11,13 +12,18 @@ company-mode.py 是 6 个通用后端（coding/writing/research/decision/explain
 用法:
   python3 gzh-dispatch.py "写公众号正文" --role-card 02-主笔 --dry-run
   python3 gzh-dispatch.py "写公众号正文" --role-card 02-主笔 --backend writing
+
+退出码：0 成功；2 参数错误 / 执行器缺失。
 """
-import argparse
 import json
 import os
 import subprocess
 import sys
 from pathlib import Path
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from gzhkit import cli as gzh_cli
 
 # 仓库根目录（原为 /var/minis/shared/gzh-team）与共享工具目录（仓库的上一级）
 GZH_TEAM = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -90,13 +96,15 @@ def build_prompt(task_desc, role_card=None):
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("task", help="任务描述")
-    ap.add_argument("--role-card", dest="role_card", default=None,
-                    help="岗位技能卡 (01-选题规划师 ... 08-数据分析师)")
-    ap.add_argument("--backend", default=None, help="后端 (默认按岗位映射)")
-    ap.add_argument("--dry-run", action="store_true", help="只打印 prompt 不执行")
-    args = ap.parse_args()
+    parser = gzh_cli.build_parser(
+        "training/gzh-dispatch.py",
+        "培训体系派发入口：岗位技能卡 + 任务 → 可执行 prompt")
+    parser.add_argument("task", help="任务描述")
+    parser.add_argument("--role-card", dest="role_card", default=None,
+                        help="岗位技能卡 (01-选题规划师 ... 08-数据分析师)")
+    parser.add_argument("--backend", default=None, help="后端 (默认按岗位映射)")
+    parser.add_argument("--dry-run", action="store_true", help="只打印 prompt 不执行")
+    args = parser.parse_args()
 
     backend = args.backend or (ROLE_BACKEND.get(args.role_card, "writing")
                                if args.role_card else "writing")
@@ -111,13 +119,17 @@ def main():
 
     runner = os.environ.get("COMPANY_MODE", os.path.join(SHARED_DIR, "company-mode.py"))
     if not os.path.isfile(runner):
-        print("❌ 未找到执行器 %s（可用环境变量 COMPANY_MODE 指定），可先用 --dry-run 查看 prompt" % runner,
-              file=sys.stderr)
+        print("❌ 未找到执行器 %s（可用环境变量 COMPANY_MODE 指定），"
+              "可先用 --dry-run 查看 prompt" % runner, file=sys.stderr)
         return 2
     cmd = [sys.executable, runner, "run", prompt, "--backend", backend]
     print("（装配完成，执行交给 company-mode.py；技能卡已写入 prompt）")
-    return subprocess.call(cmd)
+    try:
+        return subprocess.call(cmd)
+    except OSError as e:
+        print("❌ 执行器调用失败: %s" % e, file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    gzh_cli.run_main(main)
