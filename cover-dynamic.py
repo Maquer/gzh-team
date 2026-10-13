@@ -249,11 +249,11 @@ def generate_cover(art_path, keyword=None, summaries=None,
                            ('记', -20, 4), ('水', 6, 4)]:
             d.text((ccx + dx, ccy + dy), ch, font=f_seal, fill=RED)
 
-    # 4行阶梯文字（OPT2）
+    # 4行阶梯文字（左对齐，去掉阶梯偏移）
     fs = [20, 26, 32, 22]
-    offs = [0, 12, 24, 36]
+    offs = [0, 0, 0, 0]  # 左对齐，无阶梯偏移
     y = 115
-    MAX_SUM_W = 400  # 摘要单行最大宽度，超长自动缩字，避免与右侧艺术字重叠
+    MAX_SUM_W = 370  # 摘要单行最大宽度，留出足够间距避免与右侧锚点重叠
     for i, line in enumerate(use_summaries):
         x = 56 + offs[i]
         # 自适应字号：内容区用文楷（信息承载层，可读性优先）
@@ -267,28 +267,25 @@ def generate_cover(art_path, keyword=None, summaries=None,
                 break
             size -= 2
         fnt = font_lxgw(scaled if scaled else 14)
-        d.text((x, y), line, font=fnt, fill=INK)
-        tw = d.textbbox((0, 0), line, font=fnt)[2]
-        if i == 0:
-            uy = y + size + 4
-            d.rectangle([x, uy, x + tw, uy + 2], fill=RED)
+        # 第三行（观点）用品牌红高亮，其余用墨黑
+        color = RED if i == 2 else INK
+        d.text((x, y), line, font=fnt, fill=color)
         y += size + 18
 
-    # 锚点大字 + 圆形装饰（OPT3）：毛笔体做视觉锚点
-    # ax=580 让装饰组（圆环+点阵，半径 85）居中于右侧可用区；
-    # 左侧摘要最远约 x=466，此处留 ~100px 呼吸间距
-    ax = 580
-    f_anchor = font_cjk('MSZ', 72 if len(anchor_text) >= 2 else 76)
+    # 锚点大字 + 圆形装饰：衬线体做视觉锚点，放大版
+    # ax=520 确保与左侧摘要（最远 x≈446）之间留 ~74px 呼吸间距
+    ax = 520
+    f_anchor = font_cjk('SERIF', 84 if len(anchor_text) >= 2 else 88)
     abbox = d.textbbox((0, 0), anchor_text, font=f_anchor)
     aw = abbox[2] - abbox[0]
     ah = abbox[3] - abbox[1]
-    ay = 138
+    ay = 128  # 上移适配更大的字高
     circle_cx = ax + aw // 2
     circle_cy = ay + ah // 2
-    circle_r = 70
+    circle_r = 88  # 放大圆环
     d.ellipse([circle_cx - circle_r, circle_cy - circle_r,
                circle_cx + circle_r, circle_cy + circle_r], outline=LIGHT_RED, width=2)
-    arc_radius = circle_r + 15
+    arc_radius = circle_r + 18  # 放大点阵
     for i in range(24):
         angle = (i * 360 / 24 - 45) * math.pi / 180
         dx = circle_cx + arc_radius * math.cos(angle)
@@ -296,10 +293,10 @@ def generate_cover(art_path, keyword=None, summaries=None,
         d.ellipse([dx - 2, dy - 2, dx + 2, dy + 2], fill=DOT_GREY)
     d.text((ax, ay), anchor_text, font=f_anchor, fill=RED)
     d.rectangle([ax, ay + ah + 8, ax + aw, ay + ah + 10], fill=RED)
-    f_sub = font_cjk('NORMAL', 14)
+    f_sub = font_cjk('NORMAL', 15)
     d.text((ax + 2, ay + ah + 22), default_cn, font=f_sub, fill=GREY)
-    f_en2 = font_cjk('NORMAL', 11)
-    d.text((ax + 2, ay + ah + 42), default_en, font=f_en2, fill=MID_GREY)
+    f_en2 = font_cjk('NORMAL', 12)
+    d.text((ax + 2, ay + ah + 44), default_en, font=f_en2, fill=MID_GREY)
 
     # 底部 Slogan + 日期标签
     d.rectangle([56, HEAD_H - 74, HEAD_W - 56, HEAD_H - 73], fill=(215, 215, 215))
