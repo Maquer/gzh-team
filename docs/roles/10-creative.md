@@ -1,6 +1,6 @@
 ---
 id: 10-creative
-title: "3.11 视觉创意（Creative Director）"
+title: "3.10 视觉创意（Creative Director）"
 tokens: 1500
 source: "manual-v2.2"
 source_lines: "new"
