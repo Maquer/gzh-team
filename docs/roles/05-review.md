@@ -50,7 +50,7 @@ source_lines: "238-272"
 
 **工具链**：
 - `gate-check.py`——主笔交稿后先跑，看 PASS/FAIL 汇总。**FAIL 项转主笔修，PASS 项跳过**。详细门禁说明见 `REVIEW.md` §7。**注意：只看 PASS/FAIL，不过度展开明细——审核岗四层审查已覆盖所有维度**
-- `gate-H14-check.py --mode strict`——** AI 味三档硬判定，全队唯一判定源**（04 solo 分数仅供参考；07 G7 读本报告结论，不独立跑）。≤5 放行 / 6-15 重写≥50% / >25 推倒重写。**豁免**：引用块内（`>` 开头内容块）不计入 AI 味扣分（A 级决策 2026-09-26）。
+- `gate-check.py`（05 审核岗跑 strict 模式）——** AI 味三档硬判定，全队唯一判定源**（04 solo 分数仅供参考；07 G7 读本报告结论，不独立跑）。≤5 放行 / 6-15 重写≥50% / >25 推倒重写。**豁免**：引用块内（`>` 开头内容块）不计入 AI 味扣分（A 级决策 2026-09-26）。
 - `yuwen-publish-precheck`——发布前风险自审、敏感词 / 违禁词 / 限流预检、行业词库。**REVIEW.md 合规层的执行工具**
 - 提醒任务字段巡检——每次审核通读时检查 `docs/reminders/{pending,active}.md` 的 `created_at`/`fire_at`/`created_by` 完整性，违规条目退回提出岗位（见 `docs/rules/reminders.md` §3 和 §8）
 

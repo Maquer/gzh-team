@@ -62,7 +62,7 @@ source_lines: "273-333"
 
 **工具链**：`gzh-pai-ban` skill（排版）+ `assets/templates/INDEX.md`（排版模板库）+ `gate-H11-check.py`（OCR 自检）+ `gate-H12-check.py`（水印自检）+ `gate-H15-check.py`（尾图合规验收）+ `humanizer-check` 共享工具（AI 味检测）
 
-> **注意**：生图通道已迁至 11-creative.md（v2.2.1, CHANGELOG §22）。此处仅保留格式/品牌色检查职责，不再维护生图参数。
+> **注意**：生图通道已迁至 10-creative.md（v2.2.1, CHANGELOG §22）。此处仅保留格式/品牌色检查职责，不再维护生图参数。
 
 **产出物标准：排版稿**
 

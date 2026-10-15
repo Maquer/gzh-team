@@ -73,8 +73,8 @@ source_lines: "manual"
 | 推倒重写 | >25 | 全部重写 |
 
 **判定档位按模式**：
-- 单人模式：`train-check.py --mode solo`，H14 只给参考分数、不卡关产出
-- 审核模式：`train-check.py --mode strict`，走完整三档硬判定
+- 单人模式：`gate-check.py`（默认 solo 行为），H14 只给参考分数、不卡关产出
+- 审核模式：`gate-check.py`（05 审核岗跑，H14 走完整三档硬判定）
 
 **白名单豁免**：法规原文引用、必要列举（法条、触发条件、操作项）不计入 AI 味。
 
@@ -89,7 +89,7 @@ source_lines: "manual"
 - 字数：`gate-check.py`（H8 仅拦 <200；≥200 只报档位不 FAIL，合理性由 05 审核判）
 - 段落 / 金句：`gate-check.py`（H9 / H12）
 - 标题策略：`gate-check.py`（H10 标题策略覆盖）
-- AI 味：`humanizer-check` 共享工具（H14 门禁，strict 模式硬判定）⚠️ 非本团队自有 skill
+- AI 味：`gate-check.py` 内置 H14 门禁（≤5 放行 / 6-15 重写≥50% / >25 推倒重写）⚠️ 05 审核岗跑 gate-check.py 获取 strict 判定
 - 占位符：`gate-check.py`（占位符检查）
 
 ## 变更记录
