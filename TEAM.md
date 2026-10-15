@@ -1,12 +1,13 @@
 ---
 name: gzh-team
 description: "公众号写作团队职责手册。10岗图文生产全流程（选题→素材→结构→对齐→创意→撰写→出图→审核→排版→发布→回访）。触发：用户说「公众号团队」「写公众号」「团队流程」「TEAM.md」「岗位职责」。"
-version: "4.0.0"
+version: "4.1.0"
 ---
 
 # 公众号写作团队 · 职责手册
 
 
+> v4.1.0 | 2026-10-16（全岗位外部调用架构：10 角色卡 + 10 培训卡重构为薄岗位+厚工具）
 > v4.0.0 | 2026-10-15（gzhkit 共享库重构 + 述职调查 + 全岗位交叉检查 + 13 项修复）
 > v3.2.0 | 2026-10-10（封面品牌标识改用预制图片 + 字体分工定稿 + 右侧热点区右移；新增 docs/visual/brand-assets.md）
 > v2.6.0 | 2026-10-02（整理 assets + 更新 SOP + 大厂文章推送素材）
@@ -684,4 +685,6 @@ version: "4.0.0"
 | tools | [tools-design](docs/tools/tools-design.md) | 1654 | ok |
 | tools | [tools-media](docs/tools/tools-media.md) | 1704 | ok |
 | tools | [tools-release](docs/tools/tools-release.md) | 1946 | ok |
+| tools | [tools-writing](docs/tools/tools-writing.md) | 1281 | ok |
+(docs/tools/tools-release.md) | 1946 | ok |
 | tools | [tools-writing](docs/tools/tools-writing.md) | 1281 | ok |
