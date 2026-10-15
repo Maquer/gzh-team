@@ -1,4 +1,4 @@
-# 公众号写作团队 v3.2.0
+# 公众号写作团队 v4.0.0
 
 > 10 岗图文生产全流程：选题 → 素材 → 结构 → 撰写 → 出图 → 审核 → 排版 → 发布 → 回访
 >
@@ -17,7 +17,7 @@ cat TEAM.md                          # 团队职责手册（入口）
 python3 gate-check.py 稿件.md        # 成稿门禁（H1-H10，<200 字 = BLOCK）
 python3 gate-G7-check.py 稿件.md --strict --broadcast-ok   # 发布前 12 项清单
 python3 persona.py show              # 查看 10 个岗位人设
-python3 gate-version-check.py        # 提交前版本号一致性检查
+python3 gate-version-check.py .   # 提交前版本号一致性检查（参数=仓库根目录）
 ```
 
 所有脚本都支持 `--help`，缺少外部依赖时会给出明确提示而不是报错退出。
@@ -126,7 +126,7 @@ grep -rn "<YOUR_BRAND>\|<YOUR_BRAND_EN>\|＜YOUR_BRAND" .
 ```
 gzh-team/
 ├── TEAM.md                     # 团队职责手册入口（10 岗 + 门禁 + 版本纪律 + 索引）
-├── CHANGELOG.md                # 完整变更历史（最新：§31 v3.2.0）
+├── CHANGELOG.md                # 完整变更历史（最新：§32 v3.3.0 + §24-27 补建）
 ├── PUBLISH-NOTES.md            # 各版本发布说明
 ├── REVIEW.md                   # 门禁清单（R1-R6 致命 / H1-H15 高频 / 一般规范）
 ├── VALIDATION.md               # 规则可执行性验证（实测 + 样本对照）
@@ -173,10 +173,12 @@ gzh-team/
 | v3.0.0 | 2026-10-07 | 仓库整理发布 |
 | v3.1.0 | 2026-10-10 | 全量脚本修复（pyflakes 0 报错）+ 路径改为相对仓库 + 文档重写 |
 | **v3.2.0** | **2026-10-10** | **封面品牌标识改用预制图片 + 字体分工定稿 + 新增品牌素材文档** |
+| **v3.3.0** | **2026-10-13** | **门禁系统四阶段优化（G8死代码修复+train-check合并+三层架构+反馈前置+AI味可解释性）** |
+| **v4.0.0** | **2026-10-15** | **gzhkit 共享库重构 + 述职调查 + 交叉检查修复（13 条交接点补全 + 花名统一 + 5 项存在性检查）** |
 
 详细内容见 [CHANGELOG.md](CHANGELOG.md) 与 [PUBLISH-NOTES.md](PUBLISH-NOTES.md)。
 
 ---
 
-*最后更新：2026-10-10*
-*版本：v3.2.0*
+*最后更新：2026-10-15*
+*版本：v4.0.0*
