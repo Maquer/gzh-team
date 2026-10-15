@@ -67,7 +67,7 @@ source_lines: "192-237"
 | 互动钩子 | 结尾 1 个 |
 | 自检清单 | **字数类型 + 合理性三问自答** / 标题策略覆盖 / 标题支撑核对 / 元话语检查 / AI 参与标注 / AI 味评分。> ⚠️ 字数与句数由 05 脚本实测，主笔不做精确计数自检（VALIDATION §7-§9 证明无效） |
 
-> **数值标准与写作纪律**：详见 `docs/rules/standards.md`（字数/标题/金句/段落/AI 味阈值）和 `docs/rules/writing.md`（禁用词/紧迫感/数字带来源/一处一件事）。脚本口径已落地在 `gate-check.py` 和 `train-check.py`。
+> **数值标准与写作纪律**：详见 `docs/rules/standards.md`（字数/标题/金句/段落/AI 味阈值）和 `docs/rules/writing.md`（禁用词/紧迫感/数字带来源/一处一件事）。脚本口径已落地在 `gate-check.py` 和 `gate-check.py`。
 
 > **API 直推备份执行（T-14，2026-09-26）**：07 维缆不可用时，04 管城按 `gzh-api-tui-song` skill SKILL.md「6 大卡点」规程接管 API 推送。**非日常职责，仅在 07 明确交接后接管**；接管后须同步通知 01 定规，并在发布台账标注「备份执行」。
 
