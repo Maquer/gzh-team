@@ -104,8 +104,10 @@ def main():
                     help='设计师风格（10种，优先于 --color）')
     ap.add_argument('--color', choices=list(DESIGNER_STYLES.keys()), default='deep-blue',
                     help='渐变配色预设（--style 的旧别名，向后兼容）')
-    ap.add_argument('--layout', choices=['simple', 'structured'], default='simple',
-                    help='simple=右对齐标题(默认) structured=左侧标题栈+强调条+清单+日期徽章')
+    ap.add_argument('--layout', choices=['simple', 'structured', 'brand'], default='simple',
+                    help='simple=右对齐标题(默认) structured=左侧标题栈+强调条+清单+日期徽章 brand=左文右图品牌版')
+    ap.add_argument('--keyword', default='', help='锚点关键词（仅 brand 布局，留空则自动提取）')
+    ap.add_argument('--summaries', default='', help='4行摘要，分号分隔（仅 brand 布局）')
     ap.add_argument('--points', default='', help='编号清单项，逗号分隔（仅 structured）')
     ap.add_argument('--date', default='', help='日期徽章文字（仅 structured，如 "2026.09"）')
     ap.add_argument('--out', default='cover-out.png')
@@ -301,6 +303,117 @@ def main():
             text_zone = (420, 40, 890, 360)
         else:
             text_zone = (40, 40, 890, 360)
+    elif a.layout == 'brand' and not a.src:
+        # ── 品牌版式：左文右图 6:4 ──────────────────────
+        import datetime as _dt
+        _RED = (194, 69, 60)
+        _INK = (51, 51, 51)
+        _GREY = (140, 140, 140)
+        _MID_GREY = (160, 160, 160)
+        _LIGHT_RED = (232, 196, 192)
+        _DOT_GREY = (232, 180, 176)
+        _EN_BRAND = 'SANSHUI YEJI'
+        _SLOGAN = '野路实测，笔记为证：留下能用的'
+
+        _BRAND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'brand')
+
+        _keyword = a.keyword or '核心观点'
+        _summaries_input = a.summaries.split(';') if a.summaries else []
+        while len(_summaries_input) < 4:
+            _summaries_input.append('')
+        _summaries_input = _summaries_input[:4]
+
+        # 左侧红条
+        d.rectangle([0, 0, 10, TARGET_H], fill=_RED)
+
+        # Logo
+        _lx, _ly = 58, 32
+        _logo_img_path = os.path.join(_BRAND_DIR, 'logo-mixed-transparent.png')
+        if os.path.exists(_logo_img_path):
+            _logo = Image.open(_logo_img_path)
+            _target_w = 130
+            _target_h = int(round(_target_w / _logo.width * _logo.height))
+            _logo = _logo.resize((_target_w, _target_h), Image.LANCZOS)
+            im.paste(_logo, (_lx, _ly), _logo)
+        else:
+            _f_brand = canvas.require_font('NORMAL', 28)
+            d.text((_lx, _ly), '弎水野记', font=_f_brand, fill=_RED)
+
+        # 英文品牌名 + 红线
+        _f_en = canvas.require_font('BOLD', 14)
+        d.text((_lx + 140, _ly + 35), _EN_BRAND, font=_f_en, fill=_GREY)
+        d.rectangle([_lx + 140, _ly + 52, _lx + 260, _ly + 53], fill=_RED)
+
+        # 4行阶梯文字
+        _fs = [20, 26, 32, 22]
+        _y = 115
+        _MAX_SUM_W = 370
+        for _i, _line in enumerate(_summaries_input):
+            _size = _fs[_i]
+            _fnt = canvas.require_font('NORMAL', _size)
+            while _size >= 14:
+                _tw = d.textbbox((0, 0), _line, font=_fnt)[2]
+                if _tw <= _MAX_SUM_W:
+                    break
+                _size -= 2
+                _fnt = canvas.require_font('NORMAL', _size)
+            _color = _RED if _i == 2 else _INK
+            d.text((56, _y), _line, font=_fnt, fill=_color)
+            _y += _size + 18
+
+        # 锚点大字 + 圆形装饰
+        _ax = 520
+        _f_anchor = canvas.require_font('BOLD', 84 if len(_keyword) >= 2 else 88)
+        _abbox = d.textbbox((0, 0), _keyword, font=_f_anchor)
+        _aw = _abbox[2] - _abbox[0]
+        _ah = _abbox[3] - _abbox[1]
+        _ay = 128
+        _circle_cx = _ax + _aw // 2
+        _circle_cy = _ay + _ah // 2
+        _circle_r = 88
+        d.ellipse([_circle_cx - _circle_r, _circle_cy - _circle_r,
+                   _circle_cx + _circle_r, _circle_cy + _circle_r], outline=_LIGHT_RED, width=2)
+        _arc_radius = _circle_r + 18
+        for _i in range(24):
+            _angle = (_i * 360 / 24 - 45) * math.pi / 180
+            _dx = _circle_cx + _arc_radius * math.cos(_angle)
+            _dy = _circle_cy + _arc_radius * math.sin(_angle)
+            d.ellipse([_dx - 2, _dy - 2, _dx + 2, _dy + 2], fill=_DOT_GREY)
+        d.text((_ax, _ay), _keyword, font=_f_anchor, fill=_RED)
+        d.rectangle([_ax, _ay + _ah + 8, _ax + _aw, _ay + _ah + 10], fill=_RED)
+
+        # 副标题
+        _f_sub = canvas.require_font('BOLD', 15)
+        d.text((_ax + 2, _ay + _ah + 22), _summaries_input[1], font=_f_sub, fill=_GREY)
+        _f_en2 = canvas.require_font('BOLD', 12)
+        d.text((_ax + 2, _ay + _ah + 44), _summaries_input[2].upper()[:30], font=_f_en2, fill=_MID_GREY)
+
+        # 印章
+        _sx, _sy = TARGET_W - 56 - 84, 28
+        _seal_path = os.path.join(_BRAND_DIR, 'seal-uploaded-84.png')
+        if os.path.exists(_seal_path):
+            _seal = Image.open(_seal_path)
+            im.paste(_seal, (_sx, _sy), _seal)
+        else:
+            d.ellipse([_sx, _sy, _sx + 84, _sy + 84], outline=_RED, width=3)
+            d.ellipse([_sx + 6, _sy + 6, _sx + 78, _sy + 78], outline=_RED, width=1)
+
+        # 底部 Slogan + 日期
+        d.rectangle([56, TARGET_H - 74, TARGET_W - 56, TARGET_H - 73], fill=(215, 215, 215))
+        _f_slogan = canvas.require_font('BOLD', 16)
+        d.text((56, TARGET_H - 56), _SLOGAN, font=_f_slogan, fill=_GREY)
+        _f_date = canvas.require_font('BOLD', 17)
+        _date_str = a.date or _dt.datetime.now().strftime('%Y.%m')
+        _dw = d.textbbox((0, 0), _date_str, font=_f_date)[2]
+        d.rounded_rectangle([TARGET_W - 56 - _dw - 28, TARGET_H - 62, TARGET_W - 56, TARGET_H - 30],
+                            radius=6, outline=_RED, width=2)
+        d.text((TARGET_W - 56 - _dw - 14, TARGET_H - 55), _date_str, font=_f_date, fill=_RED)
+
+        print('[版式] brand: 左文右图 6:4 + 锚点大字"%s" + 4行摘要' % _keyword)
+        text_zone = (40, 40, 440, 360)
+
+
+
     else:
         # ── 简单版式：右对齐标题 ──────────────────────
         f_big = canvas.require_font('BOLD', 36)
