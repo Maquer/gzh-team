@@ -6,6 +6,7 @@ H1-H10 核心用 gzhkit.text 实现；G8/H14 调 gzhkit.gates 插件；汇总后
 exit code: 0=PASS, 1=WARN, 2=运行错误, 7=BLOCK
 """
 import argparse
+import re
 import sys
 
 from gzhkit import cli
@@ -167,6 +168,45 @@ def run_core(path, text, ctx):
                  else ('缺节：%s' % '、'.join(missing) if missing else '四节齐全')))
     if kind == '完整稿件' and missing:
         out.warn('H10', '输出结构缺节：%s' % '、'.join(missing))
+
+    # ===== 存在性检查（2026-10-15 新增，交叉检查 P1-12）=====
+    # 5 项主笔必做产出物存在性，WARN 级不阻断
+
+    # EX1 备选标题数量 ≥5（标题策略数只查策略覆盖，不查数量）
+    title_count = len(T.find_titles(text))
+    out.stat('备选标题数', '%d（阈值 ≥5）' % title_count)
+    rows.append(('EX1 备选标题数', title_count, '≥5', title_count >= 5,
+                 '余量 %+d' % (title_count - 5)))
+    if title_count < 5:
+        out.warn('EX1', '备选标题 %d<5（角色卡要求 5 个覆盖 5 种策略）' % title_count)
+
+    # EX2 配图指导存在性
+    has_photo_guide = bool(re.search(r'配图指导|配图|图片位置|图片作用', text))
+    out.stat('配图指导', '有' if has_photo_guide else '无')
+    rows.append(('EX2 配图指导', '有' if has_photo_guide else '无', '有', has_photo_guide,
+                 '角色卡必做第 6 步'))
+    if not has_photo_guide:
+        out.warn('EX2', '缺配图指导（每张图需：位置+作用+期望效果+替代文字）')
+
+    # EX3 互动钩子存在性
+    has_hook = bool(re.search(r'互动|投票|提问|评论区|聊聊|你怎么看|你呢|留言', body[-500:]))
+    out.stat('互动钩子', '有' if has_hook else '无')
+    rows.append(('EX3 互动钩子', '有' if has_hook else '无', '有', has_hook,
+                 '正文末尾 500 字内检测'))
+    if not has_hook:
+        out.warn('EX3', '缺结尾互动钩子（开放提问/投票/填空/争议/晒一晒）')
+
+    # EX4 自检清单/元信息存在性
+    has_selfcheck = bool(re.search(r'自检|元信息|字数类型|合理性|AI参与|AI 味', text))
+    out.stat('自检清单', '有' if has_selfcheck else '无')
+    rows.append(('EX4 自检清单', '有' if has_selfcheck else '无', '有', has_selfcheck,
+                 '角色卡产出物标准'))
+    if not has_selfcheck:
+        out.warn('EX4', '缺自检清单/元信息（字数类型+合理性+标题策略+AI味评分）')
+
+    # EX5 AI参与标注（升级为 WARN，原为软检查）
+    if not ai_ok:
+        out.warn('EX5', '缺AI参与标注（工具名+用途+生成占比，角色卡必填）')
 
     return out, rows
 
