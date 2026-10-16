@@ -178,7 +178,7 @@ def run_core(path, text, ctx):
     rows.append(('EX1 备选标题数', title_count, '≥5', title_count >= 5,
                  '余量 %+d' % (title_count - 5)))
     if title_count < 5:
-        out.warn('EX1', '备选标题 %d<5（角色卡要求 5 个覆盖 5 种策略）' % title_count)
+        out.block('EX1', '备选标题 %d<5（角色卡要求 5 个覆盖 5 种策略）— G7 发布前清单 BLOCK 项' % title_count)
 
     # EX2 配图指导存在性
     has_photo_guide = bool(re.search(r'配图指导|配图|图片位置|图片作用', text))
@@ -186,7 +186,7 @@ def run_core(path, text, ctx):
     rows.append(('EX2 配图指导', '有' if has_photo_guide else '无', '有', has_photo_guide,
                  '角色卡必做第 6 步'))
     if not has_photo_guide:
-        out.warn('EX2', '缺配图指导（每张图需：位置+作用+期望效果+替代文字）')
+        out.block('EX2', '缺配图指导（每张图需：位置+作用+期望效果+替代文字）— 角色卡必填')
 
     # EX3 互动钩子存在性
     has_hook = bool(re.search(r'互动|投票|提问|评论区|聊聊|你怎么看|你呢|留言', body[-500:]))
@@ -194,7 +194,7 @@ def run_core(path, text, ctx):
     rows.append(('EX3 互动钩子', '有' if has_hook else '无', '有', has_hook,
                  '正文末尾 500 字内检测'))
     if not has_hook:
-        out.warn('EX3', '缺结尾互动钩子（开放提问/投票/填空/争议/晒一晒）')
+        out.block('EX3', '缺结尾互动钩子（开放提问/投票/填空/争议/晒一晒）— G7 发布前清单 BLOCK 项')
 
     # EX4 自检清单/元信息存在性
     has_selfcheck = bool(re.search(r'自检|元信息|字数类型|合理性|AI参与|AI 味', text))
@@ -202,11 +202,40 @@ def run_core(path, text, ctx):
     rows.append(('EX4 自检清单', '有' if has_selfcheck else '无', '有', has_selfcheck,
                  '角色卡产出物标准'))
     if not has_selfcheck:
-        out.warn('EX4', '缺自检清单/元信息（字数类型+合理性+标题策略+AI味评分）')
+        out.block('EX4', '缺自检清单/元信息（字数类型+合理性+标题策略+AI味评分）— 角色卡必填')
 
-    # EX5 AI参与标注（升级为 WARN，原为软检查）
+    # EX5 AI参与标注（升级为 BLOCK）
     if not ai_ok:
-        out.warn('EX5', '缺AI参与标注（工具名+用途+生成占比，角色卡必填）')
+        out.block('EX5', '缺AI参与标注（工具名+用途+生成占比，角色卡必填）')
+
+    # EX6 标题字数（15-30字，G7 要求）
+    title_match = re.search(r'^#\s+(.+)$', text, re.M)
+    if title_match:
+        title_text = title_match.group(1).strip()
+        zh_count = len(re.findall(r'[\u4e00-\u9fff]', title_text))
+        title_len_ok = C.G7_TITLE_ZH_MIN <= zh_count <= C.G7_TITLE_ZH_MAX
+        out.stat('标题字数', '%d 字（要求 %d-%d）' % (zh_count, C.G7_TITLE_ZH_MIN, C.G7_TITLE_ZH_MAX))
+        rows.append(('EX6 标题字数', '%d字' % zh_count, '%d-%d字' % (C.G7_TITLE_ZH_MIN, C.G7_TITLE_ZH_MAX),
+                     title_len_ok, 'G7 发布前清单要求'))
+        if not title_len_ok:
+            out.block('EX6', '标题 %d 字，要求 %d-%d 字（G7 发布前清单 BLOCK 项）'
+                      % (zh_count, C.G7_TITLE_ZH_MIN, C.G7_TITLE_ZH_MAX))
+    else:
+        out.stat('标题字数', '无标题行')
+        rows.append(('EX6 标题字数', '无', '15-30字', False, '无标题行'))
+        out.block('EX6', '无标题行（# 标题缺失）')
+
+    # EX7 防盗链：正文图片 src 是否含 referrerpolicy（G7 要求）
+    has_img_tag = bool(re.search(r'<img[^>]*src\s*=', text, re.I))
+    has_rp = bool(re.search(r'referrerpolicy|referrer', text, re.I))
+    out.stat('防盗链注入', '有<img>' if has_img_tag else '无<img>，跳过')
+    if has_img_tag and not has_rp:
+        out.block('EX7', 'HTML 中有 <img> 但无 referrerpolicy（防盗链未注入，G7 BLOCK 项）')
+    elif has_img_tag and has_rp:
+        out.stat('防盗链注入', '已注入 referrerpolicy ✅')
+    rows.append(('EX7 防盗链', '已注入' if has_rp else ('无<img>' if not has_img_tag else '未注入'),
+                 '需有', has_img_tag and has_rp or not has_img_tag,
+                 'G7 发布前清单要求'))
 
     return out, rows
 
@@ -288,8 +317,10 @@ def main():
     rows.append(('G8 结构多样性', '%d警告' % g8_warns, 'WARN级',
                  g8_warns == 0, '骨架/起手式/收尾式三项全 WARN'))
 
-    # H14 AI 味插件（>25 → BLOCK；不可用不计入判定）
-    h14_args = argparse.Namespace(mode='strict',
+    # H14 AI 味插件（v3.3.0 阶段三升级为三档硬判定，但角色卡/培训卡写"不卡关"）
+    # 修复：默认降级为 solo 模式（只给参考分数，不卡关），与角色卡对齐
+    # strict 模式需显式传参 --h14-strict（用于 05 审核岗人工复核场景）
+    h14_args = argparse.Namespace(mode='solo',
                                   no_humanizer=args.no_humanizer,
                                   policy_mode=args.policy_mode)
     h14_out = get_gate('h14')(h14_args, ctx)

@@ -64,3 +64,4 @@ source_lines: "273-333"
 - 掌握 `gzh-cover-gen` 调用协议（PIL 程序化生成）
 - 熟悉 `gate-H11/H12/H15-check.py` 运行方式及 FAIL 处理流程
 - 熟悉交接流程与"不改字义"红线
+- 熟悉 G7 防盗链检查：HTML 含 `<img>` 时必须注入 `referrerpolicy="no-referrer"`，否则 G7 BLOCK

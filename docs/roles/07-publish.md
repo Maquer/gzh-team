@@ -48,4 +48,6 @@ source_lines: "334-418"
 **培训要求**
 - 掌握 G7 清单 12 项（G7 门禁）
 - 掌握 `gzh-api-tui-song` 4 步推送协议 + 6 个坑（AppSecret 只显一次 / 40164 IP 白名单 / 48001 未认证 / CRLF / 读草稿 POST / 改稿整篇覆盖）
+- 掌握 G7 账号健康检查：发布前确认账号无 🔴 健康标签（docs/account-health-label.md），有 🔴 则暂停常规发布
+- 掌握 G7 评论/群发开关确认：strict 模式必须显式传 `--comment-enabled` 和 `--broadcast-ok`
 - 熟悉草稿箱 → 后台预览 → 正式发布的确认链路
