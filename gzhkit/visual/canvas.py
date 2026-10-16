@@ -232,66 +232,19 @@ def render_logo(logo_chars=None, size=30, color=RED):
 def draw_brand_block(img, d, brand_dir=None, logo_chars=None, en_text=None,
                      lx=56, ly=32, logo_size=30, color=RED,
                      prefer_asset=True, asset_width=130):
-    """左上品牌块：logo + 英文 + 红线。
+    """左上品牌块：逐字混排 logo + 红线 + 英文行。
 
-    优先贴 assets/brand 下的预制 logo 图（缺失 → 逐字字体渲染回退，
-    v3.2.0 回退规则，exit 0）。返回几何 dict。
+    始终使用程序化逐字渲染（render_logo），确保红线和英文行正确叠加。
+    预制 logo 图（logo-horiz.png）用于品牌名预览等独立场景，不用于封面品牌块。
     """
     logo_chars = logo_chars or LOGO_CHARS
     en_text = BRAND_EN if en_text is None else en_text
-    logo = None
-    if prefer_asset and brand_dir:
-        # 优先使用 logo-horiz.png（用户上传的方案A定稿，宽高比 3.12）
-        # 回退到 logo-mixed-transparent.png（旧版，宽高比 3.86）
-        p = os.path.join(brand_dir, 'logo-horiz.png')
-        if not os.path.exists(p):
-            p = os.path.join(brand_dir, 'logo-mixed-transparent.png')
-        if os.path.exists(p):
-            try:
-                lg = Image.open(p)
-                th = int(round(asset_width / lg.width * lg.height))
-                logo = lg.resize((asset_width, th), Image.LANCZOS)
-                # RGB 模式（白底）→ 加 alpha：白=透明，非白=不透明
-                if logo.mode == 'RGB':
-                    import numpy as _np
-                    arr = _np.array(logo)
-                    mask = _np.any(arr < 240, axis=2).astype('uint8') * 255
-                    alpha = Image.fromarray(mask, 'L')
-                    logo = Image.merge('RGBA',
-                                       [logo.getchannel(c) for c in 'RGB'] + [alpha])
-            except Exception as e:
-                print('警告：品牌 logo 图加载失败 %s，改用字体渲染' % e,
-                      file=sys.stderr)
-                logo = None
-    if logo is None:
-        logo = render_logo(logo_chars, logo_size, color)
+    logo = render_logo(logo_chars, logo_size, color)
     img.paste(logo, (lx, ly), logo)
 
-    # 判断是否为横排字标（宽高比>2.2）：用于决定是否叠加红线/英文
-    # ⚠️ 必须在 img.paste() 之后判断，因为 logo 对象可能已被修改
-    wide_lockup = False
-    if prefer_asset and brand_dir and logo is not None and not hasattr(logo, 'yeji_x'):
-        aspect = logo.width / max(logo.height, 1)
-        wide_lockup = aspect > 2.2
-
-    if wide_lockup:
-        # 品牌区已有标准图（横排毛笔字标 logo-brand.png）：只贴图，
-        # 不再叠加红线/英文行 —— 标准图自身即完整品牌识别，重排反而破坏。
-        return {'lx': lx, 'ly': ly, 'logo_h': logo.height,
-                'yeji_left': lx, 'shui_right': lx + logo.width,
-                'shu_x0': lx, 'en_top': ly + logo.height, 'rule_y': None,
-                'image_only': True}
-
-    if prefer_asset and brand_dir and logo is not None and not hasattr(logo, 'yeji_x'):
-        # 方形印章母图：按 455 宽的实测字间隙换算（弎水 | 野记 两列）
-        s = asset_width / 455.0
-        shu_x0 = lx
-        shui_right = lx + 226 * s
-        yeji_left = lx + 234 * s
-    else:
-        yeji_left = lx + getattr(logo, 'yeji_x', 0)
-        shui_right = lx + getattr(logo, 'shui_right', yeji_left)
-        shu_x0 = lx + getattr(logo, 'shu_x0', 0)
+    yeji_left = lx + getattr(logo, 'yeji_x', 0)
+    shui_right = lx + getattr(logo, 'shui_right', yeji_left)
+    shu_x0 = lx + getattr(logo, 'shu_x0', 0)
 
     f_en = load_font('NORMAL', 14)
     en_top = ly + logo.height + 3
@@ -301,7 +254,7 @@ def draw_brand_block(img, d, brand_dir=None, logo_chars=None, en_text=None,
     d.text((yeji_left, en_top), en_text, font=f_en, fill=GREY, anchor='lt')
     return {'lx': lx, 'ly': ly, 'logo_h': logo.height,
             'yeji_left': yeji_left, 'shui_right': shui_right, 'shu_x0': shu_x0,
-            'en_top': en_top}
+            'en_top': en_top, 'image_only': False}
 
 
 def draw_seal(img, d, brand_dir=None, sx=None, sy=None, side=84,
