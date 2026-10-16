@@ -241,7 +241,21 @@ def draw_brand_block(img, d, brand_dir=None, logo_chars=None, en_text=None,
     img.paste(logo, (lx, ly), logo)
 
     if prefer_asset and brand_dir and logo is not None and not hasattr(logo, 'yeji_x'):
-        # 预制 logo 图：按母图 455 宽的实测字间隙换算
+        aspect = logo.width / max(logo.height, 1)
+        wide_lockup = aspect > 2.2
+    else:
+        wide_lockup = False
+
+    if wide_lockup:
+        # 品牌区已有标准图（横排毛笔字标 logo-brand.png）：只贴图，
+        # 不再叠加红线/英文行 —— 标准图自身即完整品牌识别，重排反而破坏。
+        return {'lx': lx, 'ly': ly, 'logo_h': logo.height,
+                'yeji_left': lx, 'shui_right': lx + logo.width,
+                'shu_x0': lx, 'en_top': ly + logo.height, 'rule_y': None,
+                'image_only': True}
+
+    if prefer_asset and brand_dir and logo is not None and not hasattr(logo, 'yeji_x'):
+        # 方形印章母图：按 455 宽的实测字间隙换算（弎水 | 野记 两列）
         s = asset_width / 455.0
         shu_x0 = lx
         shui_right = lx + 226 * s

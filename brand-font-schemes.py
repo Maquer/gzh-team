@@ -33,6 +33,45 @@ LOGO_SIZE_A = 42
 HERE = os.path.dirname(os.path.abspath(__file__))
 QR_PATH = os.path.join(HERE, 'assets', 'brand', 'qr-code.png')
 QR_SIZE = 240
+BRAND_LOGO_W = 150   # 品牌标准图在尾图/首图中的显示宽度
+
+
+def _now_yymm():
+    """日期角标用当前年月，避免硬编码过期。"""
+    import datetime
+    return datetime.date.today().strftime('%Y.%m')
+
+
+def crop_qr_square(path, target=None):
+    """自动定位二维码黑色模块区，裁成正方形。
+
+    旧版写死 crop((256,152,864,760))，是按 1024×1024 的旧二维码量的；
+    换成实拍公众号二维码（1122×1164，含底部引导文字）后该框会切错。
+    改为按深色像素实际范围定位，与源图尺寸解耦。
+    """
+    canvas.ensure_pillow()
+    from PIL import Image
+    im = Image.open(path).convert('L')
+    W, H = im.size
+    px = im.load()
+    STEP = 3
+    xs, ys = [], []
+    for y in range(0, H, STEP):
+        for x in range(0, W, STEP):
+            if px[x, y] < 90:
+                xs.append(x)
+                ys.append(y)
+    if not xs:
+        raise ValueError('未检测到二维码深色区域')
+    x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+    # 二维码必为正方形：以长边为准，短边居中补齐，并留 2% 静区
+    side = max(x1 - x0, y1 - y0)
+    pad = int(side * 0.02)
+    side += pad * 2
+    cx, cy = (x0 + x1) // 2, (y0 + y1) // 2
+    box = (max(0, cx - side // 2), max(0, cy - side // 2),
+           min(W, cx + side // 2), min(H, cy + side // 2))
+    return Image.open(path).convert('RGB').crop(box)
 
 
 def fnt(name, size):
@@ -46,9 +85,19 @@ def render_logo(size, logo=None, color=RED):
 
 
 def _brand_block(img, d, logo_size, lx, ly, en_size=14):
-    """品牌名（补字组合）+ 横线 + 英文，三处共用。"""
+    """品牌块：优先贴标准 logo 图（logo-mixed-transparent.png）。
+
+    品牌区已有标准图 → 只贴图，不再叠加横线/英文行（用户 2026-10-16 定：
+    「品牌区有标准图，不用重新设计」）。标准图缺失才回退逐字字体渲染。
+    """
+    geo = canvas.draw_brand_block(img, d, brand_dir=os.path.join(HERE, 'assets', 'brand'),
+                                  logo_chars=LOGO_A, lx=lx, ly=ly,
+                                  logo_size=logo_size, color=RED,
+                                  prefer_asset=True, asset_width=BRAND_LOGO_W)
+    if geo.get('image_only'):
+        return Image.new('RGBA', (geo['shui_right'] - lx, geo['logo_h']), (0, 0, 0, 0))
+    # 回退路径：字体渲染的 logo 无横线/英文可用几何，补回旧行为
     logo = render_logo(logo_size, LOGO_A, RED)
-    img.paste(logo, (lx, ly), logo)
     yeji_left = lx + getattr(logo, 'yeji_x', 0)
     shui_right = lx + getattr(logo, 'shui_right', yeji_left)
     shu_x0 = lx + getattr(logo, 'shu_x0', 0)
@@ -82,7 +131,7 @@ def make_tail(out_path, next_title=None):
 
     # 日期角标（右下）
     f_date = fnt('Sans', 14)
-    date_text = '2026.09'
+    date_text = _now_yymm()
     bb = d.textbbox((0, 0), date_text, font=f_date)
     tw, th = bb[2] - bb[0], bb[3] - bb[1]
     px, pty, pby = 12, 4, 2
@@ -95,7 +144,7 @@ def make_tail(out_path, next_title=None):
     qzx, qzw, qy = 620, 280, 60
     qx = qzx + (qzw - QR_SIZE) // 2
     try:
-        qr = Image.open(QR_PATH).convert('RGB').crop((256, 152, 864, 760))
+        qr = crop_qr_square(QR_PATH)
         img.paste(qr.resize((QR_SIZE, QR_SIZE), Image.LANCZOS), (qx, qy))
     except Exception as e:
         print('[WARN] QR 缺失或加载失败（%s），已跳过' % e)
@@ -165,7 +214,7 @@ def make_preview(out_path):
 
     # 日期角标（右下）
     f_date = fnt('Sans', 11)
-    dt = '2026.09'
+    dt = _now_yymm()
     bb = d.textbbox((0, 0), dt, font=f_date)
     tw, th = bb[2] - bb[0], bb[3] - bb[1]
     pad_x, pad_y = 8, 2
