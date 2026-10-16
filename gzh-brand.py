@@ -47,7 +47,7 @@ def run(cmd):
 
 
 def gen_brand():
-    return run([sys.executable, os.path.join(TEAM, 'brand-font-schemes.py')])
+    return run([sys.executable, os.path.join(TEAM, 'brand-font-schemes.py'), '--all'])
 
 
 def gen_cover(title=COVER_TITLE):
