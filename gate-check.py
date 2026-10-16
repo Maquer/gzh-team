@@ -147,7 +147,7 @@ def run_core(path, text, ctx):
     rows.append(('金句密度', '%d处/%d字' % (gold, zh), '≥%d处' % gold_need, gold_ok,
                  '余量 %+d' % (gold - gold_need)))
     if not gold_ok:
-        out.warn('金句密度', '金句密度 %d<%d 处（正文 %d 字，每千字 1 处）'
+        out.block('金句密度', '金句密度 %d<%d 处（正文 %d 字，每千字 1 处）— G7 发布前清单 BLOCK 项'
                  % (gold, gold_need, zh))
 
     # 紧迫诱导词
