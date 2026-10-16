@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""cover-pipeline.py：封面流水线（双模式：去水印→裁 2.35:1→叠标题→OCR 门禁）。
+"""cover-pipeline.py：封面流水线（单一布局版）。
 
-v4 垫片：CLI 参数与 v3.3.0 一致，风格参数走 gzhkit.visual.styles，
-画布/字体走 gzhkit.visual.canvas。
-用法：发布前调用，--src <AI底图> --title "标题" 或 --base pil --layout structured
-退出码：0=全绿 / 1=H11 未过 / 2=输入错误（OCR 调用失败亦 2，人工复核）。
+单一布局：锚点大字居中 + 左上品牌区 + 左下 slogan + 右下日期
+输出：900×383 PNG，自动 OCR 门禁（H11）
+用法：python3 cover-pipeline.py --title "标题" --anchor "锚点词" [--style deep-blue] [--date 2026.10]
+退出码：0=全绿 / 1=H11 未过 / 2=输入错误（OCR 调用失败亦 2）
 """
-import json
 import math
 import os
 import subprocess
@@ -18,8 +17,8 @@ from gzhkit import cli, report
 from gzhkit.visual import canvas
 from gzhkit.visual.styles import DESIGNER_STYLES
 
-TARGET_W, TARGET_H = canvas.COVER_W, canvas.COVER_H  # 900x383，2.35:1
-PAD = 40  # 水印覆盖区需大于 OCR bbox 的最小外扩
+TARGET_W, TARGET_H = canvas.COVER_W, canvas.COVER_H  # 900x383
+PAD = 40
 WATERMARK_KEYWORDS = ['AI生成', 'AI 生成', '日日新', 'sensenova', '即梦', 'jimeng', 'SENSENOVA']
 
 
@@ -37,7 +36,7 @@ def make_gradient(w, h, top, bottom):
 
 
 def make_radial_gradient(w, h, center_color, edge_color):
-    """中心→四角的径向渐变（用于叠加高光）。"""
+    """中心→四角的径向渐变。"""
     canvas.ensure_pillow()
     from PIL import Image
     img = Image.new('RGB', (w, h))
@@ -65,13 +64,14 @@ def check_text(path, level='fast'):
     if r.returncode != 0:
         return None
     try:
+        import json
         return json.loads(r.stdout).get('blocks', []) if r.stdout.strip() else []
     except ValueError:
         return None
 
 
 def check_text_dual(path):
-    """fast 为主；accurate 只做兜底补充（accurate 在纯色区会造字，不能直接全收）。"""
+    """fast 为主；accurate 只做兜底补充。"""
     fast = check_text(path, 'fast')
     accurate = check_text(path, 'accurate')
     if fast is None and accurate is None:
@@ -93,33 +93,25 @@ def is_flat(path, box, max_colors=2):
 
 
 def main():
-    ap = cli.build_parser('cover-pipeline.py', '封面流水线：去水印→裁切→叠字→OCR门禁')
+    ap = cli.build_parser('cover-pipeline.py',
+                          '封面流水线：单一布局（锚点居中+品牌左上+slogan左下+日期右下）')
+    ap.add_argument('--title', required=True, help='主标题')
+    ap.add_argument('--anchor', required=True, help='锚点关键词（居中放大显示）')
+    ap.add_argument('--style', choices=list(DESIGNER_STYLES.keys()), default='deep-blue',
+                    help='设计师风格（10种，默认 deep-blue）')
+    ap.add_argument('--date', default='', help='日期文字（默认当月 YYYY.MM）')
     ap.add_argument('--src', help='AI 底图路径（留空则用渐变背景）')
-    ap.add_argument('--base', choices=['pil', 'jimeng'], default=None,
-                    help='[--base pil] 用 PIL 渐变背景；[--base jimeng] 需配合 --src')
-    ap.add_argument('--wm', help='水印 bbox: x1,y1,x2,y2（源图坐标）')
-    ap.add_argument('--title', required=True)
-    ap.add_argument('--sub', default='')
-    ap.add_argument('--style', choices=list(DESIGNER_STYLES.keys()), default=None,
-                    help='设计师风格（10种，优先于 --color）')
-    ap.add_argument('--color', choices=list(DESIGNER_STYLES.keys()), default='deep-blue',
-                    help='渐变配色预设（--style 的旧别名，向后兼容）')
-    ap.add_argument('--layout', choices=['simple', 'structured', 'brand'], default='simple',
-                    help='simple=右对齐标题(默认) structured=左侧标题栈+强调条+清单+日期徽章 brand=左文右图品牌版')
-    ap.add_argument('--keyword', default='', help='锚点关键词（仅 brand 布局，留空则自动提取）')
-    ap.add_argument('--summaries', default='', help='4行摘要，分号分隔（仅 brand 布局）')
-    ap.add_argument('--points', default='', help='编号清单项，逗号分隔（仅 structured）')
-    ap.add_argument('--date', default='', help='日期徽章文字（仅 structured，如 "2026.09"）')
+    ap.add_argument('--wm', help='水印 bbox: x1,y1,x2,y2')
     ap.add_argument('--out', default='cover-out.png')
-    ap.add_argument('--keep-wm', action='store_true',
-                    help='保留水印（自动满足 AI 标识，但封面带角标）')
+    ap.add_argument('--keep-wm', action='store_true', help='保留水印')
     a = ap.parse_args()
+
     canvas.ensure_pillow()
     from PIL import Image, ImageDraw
+    import datetime
 
-    # ── 风格解析：--style 优先，--color 向后兼容 ──────────
-    style_key = a.style or a.color
-    style = DESIGNER_STYLES[style_key]
+    # ── 风格解析 ────────────────────────────────────────
+    style = DESIGNER_STYLES[a.style]
 
     # ── 构建底图 ─────────────────────────────────────────
     if a.src:
@@ -127,7 +119,7 @@ def main():
             report.die_input('底图不存在：%s' % a.src)
         im = Image.open(a.src).convert('RGB')
         W, H = im.size
-        print('[底图] AI 源图 %dx%d  ratio=%.4f' % (W, H, W / H))
+        print('[底图] AI 源图 %dx%d ratio=%.4f' % (W, H, W / H))
     else:
         bg = style['bg']
         if bg['type'] == 'solid':
@@ -137,7 +129,7 @@ def main():
             hl = tuple(c + 40 for c in bg['top'])
             highlight = make_radial_gradient(TARGET_W, TARGET_H, hl, bg['top'])
             im = Image.blend(highlight, im, 0.3)
-        print('[底图] PIL %s (%s) → %s' % (style_key, style['name'], im.size))
+        print('[底图] PIL %s (%s) → %s' % (a.style, style['name'], im.size))
 
     d = ImageDraw.Draw(im)
 
@@ -149,14 +141,13 @@ def main():
         px = list(patch.getdata()) or [(255, 255, 255)]
         bgc = tuple(sum(c[i] for c in px) // len(px) for i in range(3))
         d.rectangle((x1, y1, x2, y2), fill=bgc)
-        print('[去水印] 覆盖 (%d,%d,%d,%d) 用色 %s  外扩≥%dpx'
-              % (x1, y1, x2, y2, bgc, PAD))
+        print('[去水印] 覆盖 (%d,%d,%d,%d) 用色 %s' % (x1, y1, x2, y2, bgc))
     elif a.src:
-        print('[去水印] 跳过（无 --wm 参数或 --keep-wm）→ 发布必须开后台「AI 生成内容」声明开关')
+        print('[去水印] 跳过 → 发布必须开「AI 生成内容」声明开关')
     else:
         print('[去水印] PIL 模式无水印，跳过')
 
-    # ── 裁切到 2.35:1 ───────────────────────────────────
+    # ── 裁切到目标尺寸 ───────────────────────────────────
     if a.src:
         W, H = im.size
         th = int(W * TARGET_H / TARGET_W)
@@ -167,269 +158,63 @@ def main():
             top = (H - th) // 2
             im = im.crop((0, top, W, top + th))
         im = im.resize((TARGET_W, TARGET_H), Image.LANCZOS)
-        print('[裁切] %s  ratio=%.4f' % (im.size, im.size[0] / im.size[1]))
+        print('[裁切] %s ratio=%.4f' % (im.size, im.size[0] / im.size[1]))
     else:
         print('[裁切] 跳过（已为目标尺寸 %dx%d）' % (TARGET_W, TARGET_H))
 
-    # ── 叠标题 ──────────────────────────────────────────
     d = ImageDraw.Draw(im)
-    text_fill, accent = style['text_fill'], style['accent']
-    sub_fill, list_fill = style['sub_fill'], style['list_fill']
-    stroke = (15, 30, 40)
-    is_light = style['bg']['color' if style['bg']['type'] == 'solid' else 'top'][0] > 128
+    RED = canvas.RED
+    GREY = canvas.GREY
+    INK = canvas.INK
+    HAIRLINE = canvas.HAIRLINE
+    LIGHT_RED = canvas.LIGHT_RED
+    BRAND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'brand')
 
-    def put(xy, txt, fill, font, stroke_w=2):
-        x, y = xy
-        if stroke_w > 0:
-            for dx in range(-stroke_w, stroke_w + 1):
-                for dy in range(-stroke_w, stroke_w + 1):
-                    if dx or dy:
-                        d.text((x + dx, y + dy), txt, fill=stroke, font=font)
-        d.text((x, y), txt, fill=fill, font=font)
+    # ── 单一布局渲染 ──────────────────────────────────────
+    # 1. 左上品牌区
+    canvas.draw_brand_block(im, d, brand_dir=BRAND_DIR)
 
-    if a.layout == 'structured' and not a.src:
-        # ── 结构化版式 ──────────────────────────────────
-        f_title = canvas.require_font('BOLD', 32)
-        f_sub = canvas.require_font('BOLD', 14)
-        f_pt = canvas.require_font('BOLD', 13)
-        f_date = canvas.require_font('BOLD', 12)
+    # 2. 锚点大字居中
+    anchor_text = a.anchor
+    _font_size = 72 if len(anchor_text) <= 4 else 60
+    f_anchor = canvas.require_font('BOLD', _font_size)
+    abbox = d.textbbox((0, 0), anchor_text, font=f_anchor)
+    aw = abbox[2] - abbox[0]
+    ah = abbox[3] - abbox[1]
+    ax = (TARGET_W - aw) // 2
+    ay = (TARGET_H - ah) // 2 - 10
+    # 描边
+    stroke_w = 2
+    for dx in range(-stroke_w, stroke_w + 1):
+        for dy in range(-stroke_w, stroke_w + 1):
+            if dx or dy:
+                d.text((ax + dx, ay + dy), anchor_text, fill=INK, font=f_anchor)
+    d.text((ax, ay), anchor_text, fill=style['accent'], font=f_anchor)
 
-        bar_pos = style.get('bar_pos', 'left')
-        bar_w = style.get('bar_w', 5)
-        LEFT_X = 50
-        stroke_w = 1 if is_light else 2
+    # 3. 主标题（锚点上方小字）
+    if a.title != anchor_text:
+        f_title = canvas.require_font('NORMAL', 16)
+        tbbox = d.textbbox((0, 0), a.title, font=f_title)
+        tw_ = tbbox[2] - tbbox[0]
+        tx_ = (TARGET_W - tw_) // 2
+        ty_ = ay - 36
+        if ty_ < 90:
+            ty_ = ay + ah + 16
+        d.text((tx_, ty_), a.title, fill=GREY, font=f_title)
 
-        deco = style.get('deco', 'none')
-        if deco == 'corners':
-            cl = 40
-            d.line((0, 0, cl, 0), fill=accent, width=2)
-            d.line((0, 0, 0, cl), fill=accent, width=2)
-            d.line((TARGET_W, 0, TARGET_W - cl, 0), fill=accent, width=2)
-            d.line((TARGET_W, 0, TARGET_W, cl), fill=accent, width=2)
-        elif deco == 'frame':
-            d.rectangle((4, 4, TARGET_W - 4, TARGET_H - 4), outline=accent, width=2)
+    # 4. 底部 Slogan（左下）
+    d.rectangle([56, TARGET_H - 74, TARGET_W - 56, TARGET_H - 73], fill=HAIRLINE)
+    f_slogan = canvas.require_font('NORMAL', 16)
+    d.text((56, TARGET_H - 56), canvas.SLOGAN, font=f_slogan, fill=GREY)
 
-        if bar_pos == 'left':
-            d.rectangle((LEFT_X, 50, LEFT_X + bar_w, 330), fill=accent)
-        elif bar_pos == 'right':
-            d.rectangle((TARGET_W - LEFT_X - bar_w, 50, TARGET_W - LEFT_X, 330),
-                        fill=accent)
-        elif bar_pos == 'center':
-            cx = TARGET_W // 2
-            d.rectangle((cx - bar_w // 2, 50, cx + bar_w // 2, 330), fill=accent)
-        tx = LEFT_X + 20
-
-        title_align = style.get('title_align', 'left')
-        max_w = 320 if title_align == 'left' else 500
-        title_lines, cur = [], ''
-        for ch in list(a.title):
-            test = cur + ch
-            bw = d.textbbox((0, 0), test, font=f_title)
-            if bw[2] - bw[0] > max_w and cur:
-                title_lines.append(cur)
-                cur = ch
-            else:
-                cur = test
-        if cur:
-            title_lines.append(cur)
-
-        ty = 60
-        for line in title_lines:
-            if title_align == 'center':
-                bl = d.textbbox((0, 0), line, font=f_title)
-                lx = (TARGET_W - (bl[2] - bl[0])) // 2
-            elif title_align == 'right':
-                bl = d.textbbox((0, 0), line, font=f_title)
-                lx = TARGET_W - (bl[2] - bl[0]) - 50
-            else:
-                lx = tx
-            put((lx, ty), line, text_fill, f_title, stroke_w=stroke_w)
-            ty += 42
-
-        if a.sub:
-            if title_align == 'center':
-                bs = d.textbbox((0, 0), a.sub, font=f_sub)
-                sx = (TARGET_W - (bs[2] - bs[0])) // 2
-            elif title_align == 'right':
-                bs = d.textbbox((0, 0), a.sub, font=f_sub)
-                sx = TARGET_W - (bs[2] - bs[0]) - 50
-            else:
-                sx = tx
-            put((sx, ty + 4), a.sub, sub_fill, f_sub, stroke_w=stroke_w - 1)
-            ty += 24
-
-        if a.points:
-            pts = [p.strip() for p in a.points.split(',') if p.strip()]
-            py = ty + 16
-            for i, pt in enumerate(pts, 1):
-                label = '%d. %s' % (i, pt)
-                bw = d.textbbox((0, 0), label, font=f_pt)
-                if bw[2] - bw[0] > 340:
-                    while bw[2] - bw[0] > 340 and len(label) > 6:
-                        label = label[:-1]
-                        bw = d.textbbox((0, 0), label + '…', font=f_pt)
-                    label = label + '…'
-                put((tx, py), label, list_fill, f_pt, stroke_w=stroke_w - 1)
-                py += 22
-
-        if a.date:
-            badge_w, badge_h = 110, 28
-            bx, by = TARGET_W - badge_w - 30, TARGET_H - badge_h - 20
-            badge_shape = style.get('badge_shape', 'rounded')
-            badge_color = style.get('badge_color', 'accent')
-            bc = accent if badge_color == 'accent' else text_fill
-            if badge_shape == 'rounded':
-                d.rounded_rectangle((bx, by, bx + badge_w, by + badge_h),
-                                    radius=6, fill=bc)
-            elif badge_shape == 'square':
-                d.rectangle((bx, by, bx + badge_w, by + badge_h), fill=bc)
-            # 'none' → 不画徽章背景
-            bw = d.textbbox((0, 0), a.date, font=f_date)
-            text_c = (20, 20, 30) if badge_shape != 'none' else text_fill
-            d.text((bx + (badge_w - (bw[2] - bw[0])) // 2,
-                    by + (badge_h - (bw[3] - bw[1])) // 2 - 2),
-                   a.date, fill=text_c, font=f_date)
-
-        if style.get('bottom_line', True):
-            d.rectangle((0, TARGET_H - 4, TARGET_W, TARGET_H), fill=accent)
-        print('[版式] structured: %d行标题 + 清单%d项 + 徽章%s + 装饰%s'
-              % (len(title_lines),
-                 len(a.points.split(',')) if a.points else 0,
-                 '有' if a.date else '无', deco))
-
-        if title_align == 'left':
-            text_zone = (40, 40, 440, 360)
-        elif title_align == 'right':
-            text_zone = (420, 40, 890, 360)
-        else:
-            text_zone = (40, 40, 890, 360)
-    elif a.layout == 'brand' and not a.src:
-        # ── 品牌版式：左文右图 6:4 ──────────────────────
-        import datetime as _dt
-        _RED = (194, 69, 60)
-        _INK = (51, 51, 51)
-        _GREY = (140, 140, 140)
-        _MID_GREY = (160, 160, 160)
-        _LIGHT_RED = (232, 196, 192)
-        _DOT_GREY = (232, 180, 176)
-        _EN_BRAND = 'SANSHUI YEJI'
-        _SLOGAN = '野路实测，笔记为证：留下能用的'
-
-        _BRAND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'brand')
-
-        _keyword = a.keyword or '核心观点'
-        _summaries_input = a.summaries.split(';') if a.summaries else []
-        while len(_summaries_input) < 4:
-            _summaries_input.append('')
-        _summaries_input = _summaries_input[:4]
-
-        # 左侧红条
-        d.rectangle([0, 0, 10, TARGET_H], fill=_RED)
-
-        # Logo
-        _lx, _ly = 58, 32
-        _logo_img_path = os.path.join(_BRAND_DIR, 'logo-mixed-transparent.png')
-        if os.path.exists(_logo_img_path):
-            _logo = Image.open(_logo_img_path)
-            _target_w = 130
-            _target_h = int(round(_target_w / _logo.width * _logo.height))
-            _logo = _logo.resize((_target_w, _target_h), Image.LANCZOS)
-            im.paste(_logo, (_lx, _ly), _logo)
-        else:
-            _f_brand = canvas.require_font('NORMAL', 28)
-            d.text((_lx, _ly), '弎水野记', font=_f_brand, fill=_RED)
-
-        # 英文品牌名 + 红线
-        _f_en = canvas.require_font('BOLD', 14)
-        d.text((_lx + 140, _ly + 35), _EN_BRAND, font=_f_en, fill=_GREY)
-        d.rectangle([_lx + 140, _ly + 52, _lx + 260, _ly + 53], fill=_RED)
-
-        # 4行阶梯文字
-        _fs = [20, 26, 32, 22]
-        _y = 115
-        _MAX_SUM_W = 370
-        for _i, _line in enumerate(_summaries_input):
-            _size = _fs[_i]
-            _fnt = canvas.require_font('NORMAL', _size)
-            while _size >= 14:
-                _tw = d.textbbox((0, 0), _line, font=_fnt)[2]
-                if _tw <= _MAX_SUM_W:
-                    break
-                _size -= 2
-                _fnt = canvas.require_font('NORMAL', _size)
-            _color = _RED if _i == 2 else _INK
-            d.text((56, _y), _line, font=_fnt, fill=_color)
-            _y += _size + 18
-
-        # 锚点大字 + 圆形装饰
-        _ax = 520
-        _f_anchor = canvas.require_font('BOLD', 84 if len(_keyword) >= 2 else 88)
-        _abbox = d.textbbox((0, 0), _keyword, font=_f_anchor)
-        _aw = _abbox[2] - _abbox[0]
-        _ah = _abbox[3] - _abbox[1]
-        _ay = 128
-        _circle_cx = _ax + _aw // 2
-        _circle_cy = _ay + _ah // 2
-        _circle_r = 88
-        d.ellipse([_circle_cx - _circle_r, _circle_cy - _circle_r,
-                   _circle_cx + _circle_r, _circle_cy + _circle_r], outline=_LIGHT_RED, width=2)
-        _arc_radius = _circle_r + 18
-        for _i in range(24):
-            _angle = (_i * 360 / 24 - 45) * math.pi / 180
-            _dx = _circle_cx + _arc_radius * math.cos(_angle)
-            _dy = _circle_cy + _arc_radius * math.sin(_angle)
-            d.ellipse([_dx - 2, _dy - 2, _dx + 2, _dy + 2], fill=_DOT_GREY)
-        d.text((_ax, _ay), _keyword, font=_f_anchor, fill=_RED)
-        d.rectangle([_ax, _ay + _ah + 8, _ax + _aw, _ay + _ah + 10], fill=_RED)
-
-        # 副标题
-        _f_sub = canvas.require_font('BOLD', 15)
-        d.text((_ax + 2, _ay + _ah + 22), _summaries_input[1], font=_f_sub, fill=_GREY)
-        _f_en2 = canvas.require_font('BOLD', 12)
-        d.text((_ax + 2, _ay + _ah + 44), _summaries_input[2].upper()[:30], font=_f_en2, fill=_MID_GREY)
-
-        # 印章
-        _sx, _sy = TARGET_W - 56 - 84, 28
-        _seal_path = os.path.join(_BRAND_DIR, 'seal-uploaded-84.png')
-        if os.path.exists(_seal_path):
-            _seal = Image.open(_seal_path)
-            im.paste(_seal, (_sx, _sy), _seal)
-        else:
-            d.ellipse([_sx, _sy, _sx + 84, _sy + 84], outline=_RED, width=3)
-            d.ellipse([_sx + 6, _sy + 6, _sx + 78, _sy + 78], outline=_RED, width=1)
-
-        # 底部 Slogan + 日期
-        d.rectangle([56, TARGET_H - 74, TARGET_W - 56, TARGET_H - 73], fill=(215, 215, 215))
-        _f_slogan = canvas.require_font('BOLD', 16)
-        d.text((56, TARGET_H - 56), _SLOGAN, font=_f_slogan, fill=_GREY)
-        _f_date = canvas.require_font('BOLD', 17)
-        _date_str = a.date or _dt.datetime.now().strftime('%Y.%m')
-        _dw = d.textbbox((0, 0), _date_str, font=_f_date)[2]
-        d.rounded_rectangle([TARGET_W - 56 - _dw - 28, TARGET_H - 62, TARGET_W - 56, TARGET_H - 30],
-                            radius=6, outline=_RED, width=2)
-        d.text((TARGET_W - 56 - _dw - 14, TARGET_H - 55), _date_str, font=_f_date, fill=_RED)
-
-        print('[版式] brand: 左文右图 6:4 + 锚点大字"%s" + 4行摘要' % _keyword)
-        text_zone = (40, 40, 440, 360)
-
-
-
-    else:
-        # ── 简单版式：右对齐标题 ──────────────────────
-        f_big = canvas.require_font('BOLD', 36)
-        f_sub = canvas.require_font('BOLD', 16)
-        stroke_w = 1 if is_light else 2
-
-        b = d.textbbox((0, 0), a.title, font=f_big)
-        tw_, th_ = b[2] - b[0], b[3] - b[1]
-        tx, ty = TARGET_W - tw_ - 40, (TARGET_H - th_) // 2 - 15
-        put((tx, ty), a.title, text_fill, f_big, stroke_w=stroke_w)
-        if a.sub:
-            b2 = d.textbbox((0, 0), a.sub, font=f_sub)
-            put((TARGET_W - (b2[2] - b2[0]) - 40, ty + th_ + 8), a.sub,
-                sub_fill, f_sub, stroke_w=stroke_w)
-        text_zone = (420, 70, 890, 320)
-        print('[版式] simple: 右对齐标题')
+    # 5. 日期徽章（右下）
+    date_str = a.date or datetime.datetime.now().strftime('%Y.%m')
+    f_date = canvas.require_font('BOLD', 17)
+    dw = d.textbbox((0, 0), date_str, font=f_date)[2]
+    dx = TARGET_W - 56 - dw - 28
+    d.rounded_rectangle([dx, TARGET_H - 62, TARGET_W - 56, TARGET_H - 30],
+                        radius=6, outline=RED, width=2)
+    d.text((dx + 14, TARGET_H - 55), date_str, font=f_date, fill=RED)
 
     im.save(a.out, 'PNG')
     print('[输出] %s  (%dKB)' % (a.out, os.path.getsize(a.out) // 1024))
@@ -439,15 +224,16 @@ def main():
     if blocks is None:
         print('[H11] OCR 调用失败，人工复核')
         return 2
-    mine = {a.title, a.sub} - {''}
+
+    mine = {a.title, a.anchor} - {''}
     SUBSTR_INCLUDE = []
     for s in mine:
         SUBSTR_INCLUDE.extend([t.strip() for t in s.split() if len(t.strip()) >= 2])
 
-    def in_excl_zone(x, y, w, h):
-        """OCR bbox（归一化）与标题区（像素）重叠 ≥50% → 豁免。"""
+    def in_text_zone(x, y, w, h):
+        """锚点大字区域豁免（约画面中部 ±80px）。"""
+        zx1, zy1, zx2, zy2 = TARGET_W // 2 - 200, 80, TARGET_W // 2 + 200, TARGET_H - 80
         x, y, w, h = x * TARGET_W, y * TARGET_H, w * TARGET_W, h * TARGET_H
-        zx1, zy1, zx2, zy2 = text_zone
         iw = min(x + w, zx2) - max(x, zx1)
         ih = min(y + h, zy2) - max(y, zy1)
         if iw <= 0 or ih <= 0:
@@ -462,7 +248,7 @@ def main():
         if t in mine or not t:
             print('   ✓ [%s] 自加文字' % t)
             continue
-        chinese_count = sum(1 for c in t if '一' <= c <= '鿿')
+        chinese_count = sum(1 for c in t if '\u4e00' <= c <= '\u9fff')
         if chinese_count == 0:
             print('   ⚠ [%s] 无中文字符（纯英文/符号），噪声块跳过' % t)
             continue
@@ -473,8 +259,8 @@ def main():
             print('   ✓ [%s] 含标题子串（豁免）' % t)
             continue
         x, y, w, h = b['bbox']
-        if in_excl_zone(x, y, w, h):
-            print('   ✓ [%s] 位置豁免（标题区，conf=%.2f）' % (t, conf))
+        if in_text_zone(x, y, w, h):
+            print('   ✓ [%s] 位置豁免（锚点区，conf=%.2f）' % (t, conf))
             continue
         wm_hit = [kw for kw in WATERMARK_KEYWORDS if kw.lower() in t.lower()]
         if wm_hit:
