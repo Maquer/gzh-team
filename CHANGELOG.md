@@ -1,6 +1,28 @@
 
 
-## 34. v4.1.0：全岗位外部调用架构（2026-10-16）
+## 35. v4.1.1：门禁冲突修复（2026-10-16）
+
+**根因**：v4.1.0 角色卡/培训卡滞后于 gate-check.py 变更，导致门禁判定与岗位要求不一致
+
+**P0 修复**：
+- H14 默认降级为 solo 模式（只给参考分数，不卡关），与角色卡"仅供参考不卡关"对齐；strict 需显式 `--h14-strict`
+- 金句密度：WARN → BLOCK（与 G7 发布前清单对齐）
+- 互动钩子 EX3：WARN → BLOCK（与 G7 发布前清单对齐）
+
+**P1 修复**：
+- EX1-EX5 全部升级为 BLOCK（与角色卡"必填"对齐）
+- 新增 EX6：标题字数检查（15-30字，G7 BLOCK 项）
+- 新增 EX7：防盗链检查（HTML `<img>` 必须有 `referrerpolicy`，G7 BLOCK 项）
+
+**角色卡同步**：
+- 03-structure：补充 G3 结构门禁培训
+- 04-writer：H14 solo 说明 + G8/EX1-EX6 检查说明
+- 06-design：G7 防盗链检查培训
+- 07-publish：账号健康/评论群发开关培训
+
+**修改文件**：`gate-check.py` / `docs/roles/03-structure.md` / `docs/roles/04-writer.md` / `docs/roles/06-design.md` / `docs/roles/07-publish.md`
+
+**影响面**：gate-check.py 输出判定级别与角色卡要求完全对齐，防止"WARN 通过了但 G7 BLOCK 了"的流程断裂
 
 **触发**：用户指令"对所有岗位进行定岗定位定责培训，所有岗位技能只能通过外部调用"
 
