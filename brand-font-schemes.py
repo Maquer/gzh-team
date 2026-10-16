@@ -95,7 +95,7 @@ def _brand_block(img, d, logo_size, lx, ly, en_size=14):
                                   logo_size=logo_size, color=RED,
                                   prefer_asset=True, asset_width=BRAND_LOGO_W)
     if geo.get('image_only'):
-        return Image.new('RGBA', (geo['shui_right'] - lx, geo['logo_h']), (0, 0, 0, 0))
+        return geo
     # 回退路径：字体渲染的 logo 无横线/英文可用几何，补回旧行为
     logo = render_logo(logo_size, LOGO_A, RED)
     yeji_left = lx + getattr(logo, 'yeji_x', 0)
@@ -167,18 +167,7 @@ def make_follow_cover(out_path):
     d = ImageDraw.Draw(img)
     d.rectangle([0, H - 6, W, H], fill=RED)  # 底部品牌红条
 
-    logo = render_logo(LOGO_SIZE_A, LOGO_A, RED)
-    lx, ly = 56, (H - logo.height) // 2 - 16
-    img.paste(logo, (lx, ly), logo)
-    yeji_left = lx + getattr(logo, 'yeji_x', 0)
-    shui_right = lx + getattr(logo, 'shui_right', yeji_left)
-    shu_x0 = lx + getattr(logo, 'shu_x0', 0)
-    f_en = fnt('Sans', 14)
-    en_top = ly + logo.height + 3
-    bbox = d.textbbox((yeji_left, en_top), EN, font=f_en, anchor='lt')
-    en_mid = (bbox[1] + bbox[3]) / 2
-    d.rectangle([shu_x0, int(en_mid), shui_right, int(en_mid) + 1], fill=RED)
-    d.text((yeji_left, en_top), EN, font=f_en, fill=GREY, anchor='lt')
+    logo = _brand_block(img, d, LOGO_SIZE_A, 56, (H - 78) // 2)
 
     # 右侧：关注 CTA + slogan（右对齐）
     f_cta = fnt('Sans', 30)

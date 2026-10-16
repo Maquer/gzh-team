@@ -59,6 +59,21 @@ LOGO_CHARS = [('品', 'LXGW'), ('牌', 'LXGW'), ('风', 'MSZ'), ('采', 'MSZ')]
 # 2x2 程序化印章字序（右起竖读）
 SEAL_CHARS = ('品', '牌', '风', '采')
 
+# 自有部署覆盖层：gzhkit/brand_local.py（已 gitignore，不入库，见 D6 脱敏约束）。
+# 缺该文件时保持占位符 —— 但 LOGO_CHARS 回退渲染的是占位字，
+# 真机上 logo 图缺失会画出错误品牌名，故覆盖层存在与否都会打一行提示。
+BRAND_LOCAL_LOADED = False
+try:
+    from .. import brand_local as _brand_local
+    BRAND_NAME = getattr(_brand_local, 'BRAND_NAME', BRAND_NAME)
+    BRAND_EN = getattr(_brand_local, 'BRAND_EN', BRAND_EN)
+    SLOGAN = getattr(_brand_local, 'SLOGAN', SLOGAN)
+    LOGO_CHARS = getattr(_brand_local, 'LOGO_CHARS', LOGO_CHARS)
+    SEAL_CHARS = getattr(_brand_local, 'SEAL_CHARS', SEAL_CHARS)
+    BRAND_LOCAL_LOADED = True
+except ImportError:
+    pass
+
 # ── 字体回退链 ──────────────────────────────────────────
 _NOTO = '/usr/share/fonts/noto/'
 _FONT_FILES = {

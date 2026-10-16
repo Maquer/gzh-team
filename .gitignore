@@ -14,6 +14,8 @@ __pycache__/
 
 # 品牌配置
 # 使用前请把品牌占位符 <YOUR_BRAND> / <YOUR_BRAND_EN> 替换为你的账号信息（见 README「品牌配置」）
+# 也可以改用本地覆盖层 gzhkit/brand_local.py（推荐，不入库）
+gzhkit/brand_local.py
 
 # 生成的封面/尾图产物（可再生成，不入库）
 assets/out/
