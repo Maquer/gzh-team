@@ -171,7 +171,20 @@ def main():
     BRAND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'brand')
 
     # ── 单一布局渲染 ──────────────────────────────────────
-    # 1. 左上品牌区
+    # 1. 同心圆装饰（锚点大字背后的浅灰环，对齐基准封面）
+    if style.get('deco') == 'rings':
+        RCX, RCY = TARGET_W // 2 + 35, TARGET_H // 2 + 12
+        for rr in (112, 148, 184):
+            d.ellipse([RCX - rr, RCY - rr, RCX + rr, RCY + rr],
+                      outline=(229, 229, 229), width=1)
+        # 圆环右上方的稀疏点阵
+        for dx, dy, rad in ((118, -58, 2), (142, -26, 3), (150, 8, 2),
+                            (136, -84, 2), (168, -58, 2)):
+            d.ellipse([RCX + dx - rad, RCY + dy - rad,
+                      RCX + dx + rad, RCY + dy + rad],
+                      fill=(217, 217, 217))
+
+    # 2. 左上品牌区
     canvas.draw_brand_block(im, d, brand_dir=BRAND_DIR)
 
     # 2. 锚点大字居中
@@ -183,12 +196,7 @@ def main():
     ah = abbox[3] - abbox[1]
     ax = (TARGET_W - aw) // 2
     ay = (TARGET_H - ah) // 2 - 10
-    # 描边
-    stroke_w = 2
-    for dx in range(-stroke_w, stroke_w + 1):
-        for dy in range(-stroke_w, stroke_w + 1):
-            if dx or dy:
-                d.text((ax + dx, ay + dy), anchor_text, fill=INK, font=f_anchor)
+    # 纯色填充（基准封面锚点无描边，实测深红像素比 0.000）
     d.text((ax, ay), anchor_text, fill=style['accent'], font=f_anchor)
 
     # 3. 主标题（锚点上方小字）
@@ -215,6 +223,11 @@ def main():
     d.rounded_rectangle([dx, TARGET_H - 62, TARGET_W - 56, TARGET_H - 30],
                         radius=6, outline=RED, width=2)
     d.text((dx + 14, TARGET_H - 55), date_str, font=f_date, fill=RED)
+
+    # 6. 左侧品牌红条（基准版式：整条边，宽度取风格 bar_w）
+    bw = int(style.get('bar_w', 0))
+    if bw > 0:
+        d.rectangle([0, 0, bw, TARGET_H], fill=RED)
 
     im.save(a.out, 'PNG')
     print('[输出] %s  (%dKB)' % (a.out, os.path.getsize(a.out) // 1024))

@@ -241,12 +241,24 @@ def draw_brand_block(img, d, brand_dir=None, logo_chars=None, en_text=None,
     en_text = BRAND_EN if en_text is None else en_text
     logo = None
     if prefer_asset and brand_dir:
-        p = os.path.join(brand_dir, 'logo-mixed-transparent.png')
+        # 优先使用 logo-horiz.png（用户上传的方案A定稿，宽高比 3.12）
+        # 回退到 logo-mixed-transparent.png（旧版，宽高比 3.86）
+        p = os.path.join(brand_dir, 'logo-horiz.png')
+        if not os.path.exists(p):
+            p = os.path.join(brand_dir, 'logo-mixed-transparent.png')
         if os.path.exists(p):
             try:
                 lg = Image.open(p)
                 th = int(round(asset_width / lg.width * lg.height))
                 logo = lg.resize((asset_width, th), Image.LANCZOS)
+                # RGB 模式（白底）→ 加 alpha：白=透明，非白=不透明
+                if logo.mode == 'RGB':
+                    import numpy as _np
+                    arr = _np.array(logo)
+                    mask = _np.any(arr < 240, axis=2).astype('uint8') * 255
+                    alpha = Image.fromarray(mask, 'L')
+                    logo = Image.merge('RGBA',
+                                       [logo.getchannel(c) for c in 'RGB'] + [alpha])
             except Exception as e:
                 print('警告：品牌 logo 图加载失败 %s，改用字体渲染' % e,
                       file=sys.stderr)
@@ -255,11 +267,12 @@ def draw_brand_block(img, d, brand_dir=None, logo_chars=None, en_text=None,
         logo = render_logo(logo_chars, logo_size, color)
     img.paste(logo, (lx, ly), logo)
 
+    # 判断是否为横排字标（宽高比>2.2）：用于决定是否叠加红线/英文
+    # ⚠️ 必须在 img.paste() 之后判断，因为 logo 对象可能已被修改
+    wide_lockup = False
     if prefer_asset and brand_dir and logo is not None and not hasattr(logo, 'yeji_x'):
         aspect = logo.width / max(logo.height, 1)
         wide_lockup = aspect > 2.2
-    else:
-        wide_lockup = False
 
     if wide_lockup:
         # 品牌区已有标准图（横排毛笔字标 logo-brand.png）：只贴图，
@@ -306,9 +319,31 @@ def draw_seal(img, d, brand_dir=None, sx=None, sy=None, side=84,
     pasted = False
     if brand_dir and asset_name:
         p = os.path.join(brand_dir, asset_name)
+        # 兼容旧版 seal-circle-84.png（只有圆环），优先使用 logo-circle.png
         if os.path.exists(p):
             try:
                 seal = Image.open(p)
+                # 检查是否只有圆环（红色像素 < 2000），如果是则尝试 logo-circle.png
+                seal_rgb = seal.convert('RGB')
+                px = seal_rgb.load()
+                red_count = sum(1 for y in range(seal.height) for x in range(seal.width) 
+                               if px[x,y][0]>150 and px[x,y][1]<100 and px[x,y][2]<100)
+                
+                if red_count < 2000 and asset_name == 'seal-circle-84.png':
+                    # 尝试使用 logo-circle.png
+                    logo_p = os.path.join(brand_dir, 'logo-circle.png')
+                    if os.path.exists(logo_p):
+                        print(f'警告：{asset_name} 只有圆环（{red_count}红色像素），改用 logo-circle.png', file=sys.stderr)
+                        p = logo_p
+                    else:
+                        print(f'警告：{asset_name} 只有圆环，且无 logo-circle.png 替代', file=sys.stderr)
+                
+                seal = Image.open(p)
+                # 如果图片尺寸不匹配，需要缩小
+                if seal.width != side or seal.height != side:
+                    print(f'印章尺寸 {seal.width}x{seal.height} -> {side}x{side}', file=sys.stderr)
+                    seal = seal.resize((side, side), Image.LANCZOS)
+                
                 img.paste(seal, (sx, sy), seal)
                 pasted = True
             except Exception as e:
