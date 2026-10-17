@@ -14,8 +14,16 @@ from gzhkit import config as C
 from gzhkit import report
 from gzhkit import text as T
 from gzhkit.gates import get_gate
+import gzhkit.gates.g0  # noqa: F401  （注册 g0）
+import gzhkit.gates.g3  # noqa: F401  （注册 g3）
+import gzhkit.gates.g7  # noqa: F401  （注册 g7）
 import gzhkit.gates.g8  # noqa: F401  （注册 g8）
+import gzhkit.gates.h9  # noqa: F401  （注册 h9）
+import gzhkit.gates.h11  # noqa: F401  （注册 h11）
+import gzhkit.gates.h12  # noqa: F401  （注册 h12）
 import gzhkit.gates.h14  # noqa: F401  （注册 h14）
+import gzhkit.gates.h15  # noqa: F401  （注册 h15）
+import os as _os
 
 
 def _suggest(code, message):
@@ -302,13 +310,25 @@ def main():
     args = parser.parse_args()
 
     path = cli.resolve_file_arg(args, parser)
-    text = cli.read_text(path)
-    body = T.extract_body(text)
-    ctx = {'text': text, 'body': body, 'zh': T.count_zh(body),
+
+    # 图片文件：跳过文本检查，直接走图片门禁
+    is_image = str(path).lower().endswith(('.png', '.jpg', '.jpeg', '.webp'))
+    if is_image and _os.path.isfile(str(path)):
+        text = ''
+        body = ''
+    else:
+        text = cli.read_text(path)
+        body = T.extract_body(text)
+    ctx = {'text': text, 'body': body, 'zh': T.count_zh(body) if body else 0,
            'path': path, 'verbose': args.verbose,
            'policy_mode': args.policy_mode, 'no_humanizer': args.no_humanizer}
 
-    out, rows = run_core(path, text, ctx)
+    if is_image:
+        # 图片文件：跳过 H1-H10 文本检查，直接走图片门禁
+        out = report.GateOutcome('gate')
+        rows = []
+    else:
+        out, rows = run_core(path, text, ctx)
 
     # G8 结构多样性插件（WARN 级，不阻断）
     g8_out = get_gate('g8')(args, ctx)
@@ -317,9 +337,7 @@ def main():
     rows.append(('G8 结构多样性', '%d警告' % g8_warns, 'WARN级',
                  g8_warns == 0, '骨架/起手式/收尾式三项全 WARN'))
 
-    # H14 AI 味插件（v3.3.0 阶段三升级为三档硬判定，但角色卡/培训卡写"不卡关"）
-    # 修复：默认降级为 solo 模式（只给参考分数，不卡关），与角色卡对齐
-    # strict 模式需显式传参 --h14-strict（用于 05 审核岗人工复核场景）
+    # H14 AI 味插件（solo 模式，只给参考分数不卡关）
     h14_args = argparse.Namespace(mode='solo',
                                   no_humanizer=args.no_humanizer,
                                   policy_mode=args.policy_mode)
@@ -330,6 +348,59 @@ def main():
                                      or hum_score <= C.HUMANIZER_LIMITS['放行'])
     rows.append(('H14 AI味', hum_score, '≤%d' % C.HUMANIZER_LIMITS['放行'],
                  h14_ok, str(h14_out.stats.get('H14 说明', ''))))
+
+    # ===== 图片门禁（文件是图片时触发）=====
+    is_image = str(path).lower().endswith(('.png', '.jpg', '.jpeg', '.webp'))
+    if is_image and _os.path.isfile(str(path)):
+        # H11 图片 OCR 门禁
+        h11_args = argparse.Namespace(image=str(path))
+        h11_out = get_gate('h11')(h11_args, ctx)
+        merge_plugin(out, h11_out)
+        h11_blocks = len(h11_out.blocks)
+        rows.append(('H11 图片OCR', '%d阻断' % h11_blocks, '无中文残留',
+                     h11_blocks == 0, '水印/中文残留检测'))
+
+        # H12 prompt 元数据门禁
+        h12_args = argparse.Namespace(image=str(path))
+        h12_out = get_gate('h12')(h12_args, ctx)
+        merge_plugin(out, h12_out)
+        h12_blocks = len(h12_out.blocks)
+        rows.append(('H12 prompt残留', '%d阻断' % h12_blocks, '无prompt',
+                     h12_blocks == 0, 'prompt参数/主体描述检测'))
+
+        # H15 尾图合规门禁
+        h15_args = argparse.Namespace(image=str(path), content='')
+        h15_out = get_gate('h15')(h15_args, ctx)
+        merge_plugin(out, h15_out)
+        h15_blocks = len(h15_out.blocks)
+        rows.append(('H15 尾图合规', '%d阻断' % h15_blocks, '尺寸/违规词',
+                     h15_blocks == 0, '尺寸/OCR内容/导流词'))
+    elif is_image:
+        rows.append(('H11/H12/H15', '跳过', '图片门禁', True, '文件不存在'))
+
+    # ===== 结构案门禁（正文含结构案时触发）=====
+    if '结构案' in text or '## 结构' in text or '# 结构' in text:
+        g3_args = argparse.Namespace(structure=text)
+        try:
+            g3_out = get_gate('g3')(g3_args, ctx)
+            merge_plugin(out, g3_out)
+            g3_blocks = len(g3_out.blocks)
+            rows.append(('G3 结构案', '%d阻断' % g3_blocks, '节数/字数/金句',
+                         g3_blocks == 0, '5类模板判据'))
+        except Exception as e:
+            rows.append(('G3 结构案', '跳过', '-', True, str(e)[:60]))
+
+    # ===== 选题门禁（正文含选题卡时触发）=====
+    if '选题' in text and ('选题卡' in text or '# 选题' in text):
+        try:
+            g0_args = argparse.Namespace(topic=text)
+            g0_out = get_gate('g0')(g0_args, ctx)
+            merge_plugin(out, g0_out)
+            g0_blocks = len(g0_out.blocks)
+            rows.append(('G0 选题', '%d阻断' % g0_blocks, '证据基础',
+                         g0_blocks == 0, '选题排期/素材包判据'))
+        except Exception as e:
+            rows.append(('G0 选题', '跳过', '-', True, str(e)[:60]))
 
     report.print_stats(out)
     report.print_verdict(out)

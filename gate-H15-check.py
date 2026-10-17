@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """垫片：gate-H15-check.py → gzhkit.gates.h15（尾图合规检查）。
+# ⚠️ CLI 入口层 — 实际逻辑在 gzhkit/gates/，本文件仅做参数解析和调用转发
 exit code: 0=PASS / 1=FAIL / 2=输入错误（与 v3.3.0 一致）
 """
 from gzhkit import cli

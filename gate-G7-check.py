@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """垫片：gate-G7-check.py → gzhkit.gates.g7（G7 发布前清单）。
+# ⚠️ CLI 入口层 — 实际逻辑在 gzhkit/gates/，本文件仅做参数解析和调用转发
 exit code: 0=全绿 / 1=FAIL（strict 下 WARN 也算） / 2=输入错误（与 v3.3.0 一致）
 """
 import json as _json

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """垫片：gate-H14-check.py → gzhkit.gates.h14（AI 味检测）。
+# ⚠️ CLI 入口层 — 实际逻辑在 gzhkit/gates/，本文件仅做参数解析和调用转发
 exit code（与 v3.3.0 一致）：solo=始终 0（只给参考分数，不卡关产出）；
 strict=0/1/2；脚本不可用时不计入判定（v4 放宽，v3.3.0 记 FAIL）。
 """

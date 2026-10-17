@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """垫片：gate-G8-check.py → gzhkit.gates.g8（G8 结构多样性）。
+# ⚠️ CLI 入口层 — 实际逻辑在 gzhkit/gates/，本文件仅做参数解析和调用转发
 exit code: 0=PASS / 1=FAIL / 2=输入错误（与 v3.3.0 一致）
 注意：v4 的 g8 插件只做「结构多样性」（全 WARN 级），
 v3.3.0 的 13 项发布前检查已拆入 g7 与 gate-check 编排器。
