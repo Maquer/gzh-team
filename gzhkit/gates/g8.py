@@ -81,11 +81,11 @@ def check(args, ctx):
     is_B = any('?' in h or '？' in h for h in h2_list)
     
     # C 型：案例（关键词命中 H2）
-    case_patterns = ['案例', '公司', '为例', '某', '项目', '经历']
-    is_C = any(p in h for h in h2_list for p in case_patterns)
+    case_patterns = ['案例', '公司', '为例', '某', '项目', '经历', 'XX']
+    is_C = any(any(p in h for p in case_patterns) for h in h2_list)
     
     # D 型：清单（①②③ 或 (1)(2) 等）
-    is_D = bool(re.search(r'[①②③④⑤⑥⑦⑧⑨⑩]|[（(]\d+[)）]', t))
+    is_D = any(re.search(r'[①②③④⑤⑥⑦⑧⑨⑩]|[（(]\d+[)）]', h) for h in h2_list)
     
     # F 型：对话（甲/乙/问/答 在 H2）
     dialog_patterns = ['甲：', '乙：', '丙：', '问：', '答：', 'Q:', 'A:']
