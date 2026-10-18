@@ -160,7 +160,7 @@ def run_core(path, text, ctx):
 
     # 金句密度
     gold = T.count_gold(body)
-    gold_need = T.gold_needed(zh)
+    gold_need = max(2, zh // 1000)  # v2.0: 全文底线 ≥2 处，与 standards.md §3 对齐
     gold_ok = (zh == 0) or (gold >= gold_need)
     out.stat('金句密度', '%d 处加粗 / %d 字（阈值 ≥%d 处）' % (gold, zh, gold_need))
     rows.append(('金句密度', '%d处/%d字' % (gold, zh), '≥%d处' % gold_need, gold_ok,

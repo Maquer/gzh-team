@@ -49,7 +49,17 @@ def _first_section(lines):
 
 
 def check(args, ctx):
-    """执行 G8 结构多样性检查。ctx: text/path/verbose。"""
+    """执行 G8 结构多样性检查。ctx: text/path/verbose。
+
+    六型判定（2026-10-18 升级，原只判 A/E 两档）：
+    - A 型：序数词小标题（一、二、三…）≥3 → 已停用
+    - B 型：问答骨架（H2 含问号）
+    - C 型：案例骨架（H2 含"案例"/"XX公司"/"以…为例"）
+    - D 型：清单骨架（H2 含①②③或数字圆括号）
+    - E 型：场景骨架（H2 含"作为…"/"如果…"/叙事短句）
+    - F 型：对话骨架（H2 含"甲："/"乙："/"问"/"答"）
+    无法归类 → ? 型
+    """
     out = GateOutcome('g8')
     t = ctx.get('text', '')
     fname = os.path.basename(ctx.get('path', ''))
@@ -59,33 +69,76 @@ def check(args, ctx):
     history_file = os.path.join(history_dir, C.G8_HISTORY_FILE)
     history = _load_history(history_file)
 
-    # 当前骨架类型
-    a_matches = re.findall(C.G8_ORDINAL_RE, t, re.M)
-    current = 'A' if len(a_matches) >= C.G8_ORDINAL_MIN else 'E'
-    out.stat('G8 骨架类型', '%s 型（序数词小标题 %d 个）' % (current, len(a_matches)))
+    # ── 六型判定 ──────────────────────────────────────────────
+    lines = t.split('\n')
+    h2_list = [ln.strip() for ln in lines if re.match(r'^##\s+', ln)]
+    
+    # A 型：序数词小标题
+    ordinal_matches = re.findall(C.G8_ORDINAL_RE, t, re.M)
+    is_A = len(ordinal_matches) >= C.G8_ORDINAL_MIN
+    
+    # B 型：问答（H2 含问号）
+    is_B = any('?' in h or '？' in h for h in h2_list)
+    
+    # C 型：案例（关键词命中 H2）
+    case_patterns = ['案例', '公司', '为例', '某', '项目', '经历']
+    is_C = any(p in h for h in h2_list for p in case_patterns)
+    
+    # D 型：清单（①②③ 或 (1)(2) 等）
+    is_D = bool(re.search(r'[①②③④⑤⑥⑦⑧⑨⑩]|[（(]\d+[)）]', t))
+    
+    # F 型：对话（甲/乙/问/答 在 H2）
+    dialog_patterns = ['甲：', '乙：', '丙：', '问：', '答：', 'Q:', 'A:']
+    is_F = any(p in h for h in h2_list for p in dialog_patterns)
+    
+    # E 型：场景（作为… / 如果… / 叙事性短句）
+    scene_patterns = ['作为', '如果', '假如', '假如你是', '当你']
+    is_E = any(p in h for h in h2_list for p in scene_patterns)
+    
+    # 优先级：A > B > C > D > E > F > ?
+    if is_A:
+        current = 'A'
+    elif is_B:
+        current = 'B'
+    elif is_C:
+        current = 'C'
+    elif is_D:
+        current = 'D'
+    elif is_E:
+        current = 'E'
+    elif is_F:
+        current = 'F'
+    else:
+        current = '?'
+    
+    out.stat('G8 骨架类型', '%s 型（序数词小标题 %d 个，H2 %d 个）' % (current, len(ordinal_matches), len(h2_list)))
 
-    # 上一篇（不同稿件）是否同类——同一文件复检先剔除旧记录，防改稿自撞假阳性
+    # ── 历史连续同类检测（同骨架出现 ≥2 次才 WARN）──────────
     prior = [r for r in history if r.get('file') != fname]
-    recent_same = bool(prior and prior[-1].get('structure') == current)
+    recent_same_count = sum(1 for r in reversed(prior) if r.get('structure') == current)
     out.stat('上一篇骨架', ('%s 型' % prior[-1].get('structure')) if prior else '无记录')
-    if recent_same:
-        out.warn('G8', '连续2篇同类骨架（%s型）' % current)
+    # 连续同类 ≥2 次（即当前 + 前一篇同类）才报警，避免 A/E 两档必然连续的问题
+    if recent_same_count >= 2:
+        out.warn('G8', '连续%d篇同类骨架（%s型）' % (recent_same_count + 1, current))
+    
+    # 若当前是 A 型（已停用），强制 WARN
+    if current == 'A':
+        out.warn('G8', 'A 型（序数词骨架）已停用，请改用 B/F 型')
 
-    # 禁用起手式（开头 5 行）
+    # ── 禁用起手式/收尾式 ────────────────────────────────────
     first_body = _first_section(t.split('\n'))
     opening_hits = [p for p in C.DISABLED_OPENINGS if p in first_body]
     out.stat('禁用起手式', opening_hits or '无')
     if opening_hits:
         out.warn('G8', '禁用起手式：%s' % '、'.join(opening_hits))
 
-    # 禁用收尾式（末尾 10 行）
     last_body = '\n'.join(t.split('\n')[-10:])
     closing_hits = [p for p in C.DISABLED_CLOSINGS if p in last_body]
     out.stat('禁用收尾式', closing_hits or '无')
     if closing_hits:
         out.warn('G8', '禁用收尾式：%s' % '、'.join(closing_hits))
 
-    # 记录本次骨架（同名文件覆盖）
+    # 记录本次骨架
     history = [r for r in history if r.get('file') != fname]
     history.append({'file': fname, 'structure': current,
                     'timestamp': datetime.now().isoformat()})
