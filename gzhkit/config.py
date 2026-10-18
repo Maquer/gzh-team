@@ -41,8 +41,30 @@ INJECT_RE = re.compile(
     r'</?(?:result|system|minis)\b[^>]*>|<\|im_end\|>|'
     r'ignore\s+(?:all\s+)?previous\s+instructions)', re.I | re.M)
 
-# ── H-元数据泄漏（正文不得含 → BLOCK） ──
+# ── H-元数据泄漏（正文不得含 → BLOCK；元信息区豁免见 text.split_meta_block）──
 META_LEAK_RE = re.compile(r'平台：公众号|字数：约|调性：')
+
+# 元信息区合法字段（04-writer 产出物：平台/类型/字数/调性）——在 H1 后前缀区出现即合法
+META_FIELD_RE = re.compile(
+    r'^\s*(?:平台|字数|类型|调性|目标字数|合理性)\s*[:：]')
+META_FIELD_ANY_RE = re.compile(
+    r'^\s*\**\s*(?:平台|字数|类型|调性|目标字数|合理性)\s*[:：]')
+
+# ── 调性词表（唯一来源：docs/rules/tone-structure-map.md v1.0，2026-10-18 统一）──
+TONE_KEYS = ('authoritative', 'analytical', 'friendly', 'urgent', 'elegant')
+TONE_LABELS = {'authoritative': '权威·合规', 'analytical': '理性·深度',
+               'friendly': '亲和·教程', 'urgent': '紧迫·热点', 'elegant': '克制·美学'}
+TONE_LEGAL = set(TONE_KEYS) | set(TONE_LABELS.values())
+# 旧合成词 → key（新写禁用；识别后给替换建议）
+TONE_ALIAS = {'权威·分析': 'authoritative', '深度·警示': 'analytical',
+              '深度分析': 'analytical', '深度': 'analytical',
+              '热点': 'urgent', '快讯': 'urgent',
+              '轻松': 'friendly', '干货': 'friendly', '小白': 'friendly',
+              '克制': 'elegant', '质感': 'elegant'}
+# 稿件里 调性： 字段（取值到分隔符/引用符/行尾为止）
+TONE_FIELD_RE = re.compile(
+    r'^\s*\**\s*调性\s*[:：]\s*\**\s*([^|，,。*#（(]+?)\s*\**\s*$',
+    re.M)
 
 # ── 标题策略数：备选阶段 5 个（5 类策略），已选阶段 ≥1 ──
 TITLE_MIN_DRAFT = 5

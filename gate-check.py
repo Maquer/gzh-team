@@ -147,6 +147,17 @@ def run_core(path, text, ctx):
     else:
         rows.append(('H-元数据泄漏', 0, '=0', True, 'META_LEAK_RE 全扫'))
 
+    # 调性取值域（2026-10-18 词表统一；非法=WARN 给替换建议，缺失=软检查不计判定）
+    tone_val = T.find_tone(text)
+    tone_state, tone_hint = T.check_tone(tone_val)
+    out.stat('调性', tone_val or '未标注')
+    if tone_state == 'bad':
+        out.warn('H-调性', '调性「%s」不在 5 档词表 — %s' % (tone_val, tone_hint))
+    rows.append(('调性取值域', tone_val or '未标注', '5 档枚举',
+                 tone_state != 'bad',
+                 tone_hint if tone_state == 'bad'
+                 else '缺失=软检查不计判定；词表=docs/rules/tone-structure-map.md'))
+
     # 金句密度
     gold = T.count_gold(body)
     gold_need = T.gold_needed(zh)
