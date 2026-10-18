@@ -95,9 +95,12 @@ def check(args, ctx):
     scene_patterns = ['作为', '如果', '假如', '假如你是', '当你']
     is_E = any(p in h for h in h2_list for p in scene_patterns)
     
-    # 优先级：A > B > C > D > E > F > ?
+    # 优先级：A > F > B > C > D > E > ?
+    # F型（对话）含"甲：乙："等标志词时优先于B型（问号），避免"甲：XX？"被误判B型
     if is_A:
         current = 'A'
+    elif is_F:
+        current = 'F'
     elif is_B:
         current = 'B'
     elif is_C:
@@ -106,8 +109,6 @@ def check(args, ctx):
         current = 'D'
     elif is_E:
         current = 'E'
-    elif is_F:
-        current = 'F'
     else:
         current = '?'
     
